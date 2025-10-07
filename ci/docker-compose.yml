@@ -74,18 +74,22 @@ x-envoy-build-base: &envoy-build-base
   - "/bin/bash"
   - "-c"
   - |
-    groupadd --gid ${DOCKER_GID:-${USER_GID:-$(id -g)}} -f envoygroup
-    useradd -o \
-        --uid ${USER_UID:-$(id -u)} \
-        --gid ${DOCKER_GID:-${USER_GID:-$(id -g)}} \
-        --no-create-home \
-        -s /bin/bash \
-        --home-dir /build envoybuild
-    usermod -a -G pcap envoybuild
-    chown envoybuild:envoygroup /build
-    chown envoybuild /proc/self/fd/2 2>/dev/null || true
-    [[ -e /entrypoint-extra.sh ]] && /entrypoint-extra.sh
-    sudo -EHs -u envoybuild bash -c 'cd ${ENVOY_DOCKER_SOURCE_DIR:-/source} && exec ${DOCKER_COMMAND:-bash}'
+    if  false ; then
+      groupadd --gid ${DOCKER_GID:-${USER_GID:-$(id -g)}} -f envoygroup
+      useradd -o \
+          --uid ${USER_UID:-$(id -u)} \
+          --gid ${DOCKER_GID:-${USER_GID:-$(id -g)}} \
+          --no-create-home \
+          -s /bin/bash \
+          --home-dir /build envoybuild
+      usermod -a -G pcap envoybuild
+      chown envoybuild:envoygroup /build
+      chown envoybuild /proc/self/fd/2 2>/dev/null || true
+      [[ -e /entrypoint-extra.sh ]] && /entrypoint-extra.sh
+      sudo -EHs -u envoybuild bash -c 'cd ${ENVOY_DOCKER_SOURCE_DIR:-/source} && exec ${DOCKER_COMMAND:-bash}'
+    else
+      bash -c 'cd ${ENVOY_DOCKER_SOURCE_DIR:-/source} && exec ${DOCKER_COMMAND:-bash}'
+    fi
 
 services:
   envoy-build:
