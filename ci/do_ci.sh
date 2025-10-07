@@ -499,7 +499,7 @@ case $CI_TARGET in
         bazel_envoy_binary_build fastbuild
         echo "Testing ${TEST_TARGETS[*]}"
         bazel test "${BAZEL_BUILD_OPTIONS[@]}" \
-              -c fastbuild "${TEST_TARGETS[@]}"
+              --test_output=errors -c fastbuild "${TEST_TARGETS[@]}"
         ;;
 
     dev.contrib)
