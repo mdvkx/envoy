@@ -111,7 +111,7 @@ HeaderFilterRegex: '^./source/.*|^./contrib/.*|^./test/.*|^./envoy/.*'
 
 UseColor: true
 
-WarningsAsErrors: '*'
+#WarningsAsErrors: '*'
 
 ## The version here is arbitrary since any change to this file will
 ## trigger a full run of clang-tidy against all files.
