@@ -1,7 +1,7 @@
 
 SHELL = /bin/sh
 
-.PHONY:  default compdb docker docker-build docker-build-test
+.PHONY:  default compdb docker docker-build-dev docker-build-dev-server-only docker-build-dev-test
 
 DOCKER = env ENVOY_DOCKER_BUILD_DIR="${HOME}"/envoy-docker-build ./ci/run_envoy_docker.sh
 
@@ -13,7 +13,9 @@ compdb:
 
 docker:
 	$(DOCKER) 'bash'
-docker-build:
+docker-build-dev:
+	$(DOCKER) 'env BAZELRC_FILE=/build/clang.bazelrc ci/do_ci.sh dev'
+docker-build-dev-server-only:
 	$(DOCKER) 'env BAZELRC_FILE=/build/clang.bazelrc ci/do_ci.sh dev.server_only'
-docker-build-test:
+docker-build-dev-test:
 	$(DOCKER) 'env BAZELRC_FILE=/build/clang.bazelrc ci/do_ci.sh dev //test/extensions/http/cache/ring_buffer_http_cache:ring_buffer_http_cache_test'
