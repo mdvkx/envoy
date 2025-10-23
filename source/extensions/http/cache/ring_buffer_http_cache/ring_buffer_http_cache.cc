@@ -82,8 +82,42 @@ struct  RingBufferLookupContext : public LookupContext
 ///  represents a single insert operation.
 struct  RingBufferInsertContext : public InsertContext
 {
+  Event::Dispatcher          & m_Dispatcher;
+  std::weak_ptr<RingBufferHttpCache>  m_Cache;
+  std::unique_ptr<RingBufferLookupContext>  m_Lookup;  // yes? no? -??? at least  i don't dangle
+  bool                         m_Stop = false;
 
+  Http::ResponseHeaderMapPtr   m_ResponseHeaders;
+  Http::ResponseTrailerMapPtr  m_ResponseTrailers;
+  ResponseMetadata             m_ResponseMetadata;
+  std::string                  m_ResponseBody;
 
+  // ------------------------------------------------------------------------
+  RingBufferInsertContext (
+    Event::Dispatcher                          & dispatcher,
+    std::shared_ptr<RingBufferHttpCache>         cache,
+    std::unique_ptr<RingBufferLookupContext>  && lookup
+  )
+    : m_Dispatcher       { dispatcher }
+    , m_Cache            { cache }
+    , m_Lookup           { std::move ( lookup ) }
+    , m_ResponseHeaders  { nullptr }
+    , m_ResponseTrailers { nullptr }
+    , m_ResponseMetadata { }
+    , m_ResponseBody     { "" }
+  {
+  }
+  // ------------------------------------------------------------------------
+  auto  commit ( )
+    -> void
+  {
+    // response is complete, insert into cache
+    if ( auto  cache = m_Cache . lock () )
+      assert ( 0 );
+    else
+      assert ( 0 );
+  }
+  // ------------------------------------------------------------------------
   auto  insertHeaders (
     const Http::ResponseHeaderMap  & response_headers,
     const ResponseMetadata         & metadata,
@@ -93,8 +127,15 @@ struct  RingBufferInsertContext : public InsertContext
     -> void
     override
   {
-
-    assert ( 0 );
+    m_ResponseHeaders   = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( response_headers );
+    m_ResponseMetadata  = metadata;
+    if ( end_stream )
+      this -> commit ();
+    m_Dispatcher . post ( [ func = std::move ( insert_complete ) ] ( ) mutable
+      -> void
+    {
+      std::move ( func ) ( /* success: */ true );
+    } );
   }
   // ------------------------------------------------------------------------
   auto  insertBody (
@@ -105,7 +146,16 @@ struct  RingBufferInsertContext : public InsertContext
     -> void
     override
   {
-    assert ( 0 );
+    m_ResponseBody += fragment . toString ();
+    std::cout << "\"" << m_ResponseBody << "\"\n";
+    std::cout . flush ();
+    if ( end_stream )
+      this -> commit ();
+    m_Dispatcher . post ( [ func = std::move ( ready_for_next_fragment ) ] ( ) mutable
+      -> void
+    {
+      std::move ( func ) ( /* success: */ true );
+    } );
   }
   // ------------------------------------------------------------------------
   auto insertTrailers (
@@ -116,13 +166,20 @@ struct  RingBufferInsertContext : public InsertContext
     override
   {
     assert ( 0 );
+    m_ResponseTrailers  = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
+    this -> commit ();
+    m_Dispatcher . post ( [ func = std::move ( insert_complete ) ] ( ) mutable
+      -> void
+    {
+      std::move ( func ) ( /* success: */ true );
+    } );
   }
   // ------------------------------------------------------------------------
   auto onDestroy ( )
     -> void
     override
   {
-    assert ( 0 );
+    m_Stop = true;
   }
 };
 
@@ -147,7 +204,15 @@ auto  RingBufferHttpCache::makeInsertContext (
 )
   -> InsertContextPtr
 {
-  return  std::make_unique<RingBufferInsertContext> ();
+  // ughhhhh
+  auto  lookup = [ & ] ( ) {
+    const auto  tmp = dynamic_cast<RingBufferLookupContext *> ( lookup_context . release () );
+    assert ( tmp );
+    auto  lookup = std::unique_ptr<RingBufferLookupContext> ( std::move ( tmp ) );
+    return  lookup;
+  } ();
+
+  return  std::make_unique<RingBufferInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::move ( lookup ) );
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::updateHeaders (
@@ -169,7 +234,21 @@ auto  RingBufferHttpCache::cacheInfo ( ) const
 }
 // --------------------------------------------------------------------------
 [[nodiscard]]
-auto  RingBufferHttpCache::lookup ( const LookupRequest  & request ) const
+auto  RingBufferHttpCache::lookup ( const Key  & key ) const
+  -> Value *
+{
+  assert ( 0 );
+}
+// --------------------------------------------------------------------------
+[[nodiscard]]
+auto  RingBufferHttpCache::insert ( const Key  & key, Value  value )
+  -> bool
+{
+  assert ( 0 );
+}
+// --------------------------------------------------------------------------
+[[nodiscard]]
+auto  RingBufferHttpCache::insert ( const Key  & key, const std::function<Value ()>  & lazy )
   -> bool
 {
   assert ( 0 );

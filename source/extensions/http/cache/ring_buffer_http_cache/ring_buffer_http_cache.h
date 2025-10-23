@@ -17,15 +17,21 @@ namespace Cache
 {
 
 
-struct  RingBufferHttpCache : public HttpCache
+struct  RingBufferHttpCache
+  : public HttpCache,
+    public std::enable_shared_from_this<RingBufferHttpCache>  // TODO:  enable shared from this?
 {
   using  Self = RingBufferHttpCache;
 
   static constexpr std::string_view  CACHE_INFO_NAME = "envoy.extensions.http.cache.ring_buffer";
 
+  using  Key = int;
+  using  Value = int;
+
   // TODO:
   // ring buffer
 
+  // from  HttpCache
   [[nodiscard]]
   auto  makeLookupContext (
     LookupRequest                 && request,
@@ -56,9 +62,18 @@ struct  RingBufferHttpCache : public HttpCache
     -> CacheInfo
     override;
 
+  // ----------------------------------------------------
 
   [[nodiscard]]
-  auto  lookup ( const LookupRequest  & request ) const
+  auto  lookup ( const Key  & key ) const
+    -> Value *;
+
+  [[nodiscard]]
+  auto  insert ( const Key  & key, Value  value )
+    -> bool;
+
+  [[nodiscard]]
+  auto  insert ( const Key  & key, const std::function<Value ()>  & lazy )
     -> bool;
 
 };
