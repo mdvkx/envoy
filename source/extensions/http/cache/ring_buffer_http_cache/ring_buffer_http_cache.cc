@@ -24,16 +24,19 @@ auto  g_Register  = Registry::RegisterFactory<RingBufferHttpCacheFactory, HttpCa
 struct  RingBufferLookupContext : public LookupContext
 {
   Event::Dispatcher  & m_Dispatcher;
+  std::weak_ptr<RingBufferHttpCache>  m_Cache;
   LookupRequest  m_Request;
   //  simple http cache uses std::shared_ptr<bool>, but i dunno why, it doesn't make it thread safe
   bool  m_Stop = false;
 
 
-  explicit  RingBufferLookupContext (
-    Event::Dispatcher   & dispatcher,
-    LookupRequest      && request
+  RingBufferLookupContext (
+    Event::Dispatcher                      & dispatcher,
+    std::shared_ptr<RingBufferHttpCache>     cache,
+    LookupRequest                         && request
   )
     : m_Dispatcher  { dispatcher },
+      m_Cache       { cache },
       m_Request     { std::move ( request ) }
   {
   }
@@ -194,7 +197,7 @@ auto  RingBufferHttpCache::makeLookupContext (
 )
   -> LookupContextPtr
 {
-  return  std::make_unique<RingBufferLookupContext> ( callbacks . dispatcher (), std::move ( request ) );
+  return  std::make_unique<RingBufferLookupContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::move ( request ) );
 }
 // --------------------------------------------------------------------------
 [[nodiscard]]
