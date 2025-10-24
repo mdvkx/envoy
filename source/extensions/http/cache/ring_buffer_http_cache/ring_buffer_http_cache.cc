@@ -90,8 +90,8 @@ struct  RingBufferInsertContext : public InsertContext
   std::unique_ptr<RingBufferLookupContext>  m_Lookup;  // yes? no? -??? at least  i don't dangle
   bool                         m_Stop = false;
 
-  Http::ResponseHeaderMapPtr   m_ResponseHeaders;
-  Http::ResponseTrailerMapPtr  m_ResponseTrailers;
+  Http::ResponseHeaderMapPtr   m_ResponseHeaders  = nullptr;
+  Http::ResponseTrailerMapPtr  m_ResponseTrailers = nullptr;
   ResponseMetadata             m_ResponseMetadata;
   std::string                  m_ResponseBody;
 
@@ -104,10 +104,6 @@ struct  RingBufferInsertContext : public InsertContext
     : m_Dispatcher       { dispatcher }
     , m_Cache            { cache }
     , m_Lookup           { std::move ( lookup ) }
-    , m_ResponseHeaders  { nullptr }
-    , m_ResponseTrailers { nullptr }
-    , m_ResponseMetadata { }
-    , m_ResponseBody     { "" }
   {
   }
   // ------------------------------------------------------------------------
