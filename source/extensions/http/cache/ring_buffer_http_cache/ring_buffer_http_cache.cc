@@ -30,7 +30,8 @@ struct  RingBufferLookupContext : public LookupContext
   bool  m_Stop = false;
 
 
-  RingBufferLookupContext (
+
+        RingBufferLookupContext (
     Event::Dispatcher                      & dispatcher,
     std::shared_ptr<RingBufferHttpCache>     cache,
     LookupRequest                         && request
@@ -96,7 +97,7 @@ struct  RingBufferInsertContext : public InsertContext
   std::string                  m_ResponseBody;
 
   // ------------------------------------------------------------------------
-  RingBufferInsertContext (
+        RingBufferInsertContext (
     Event::Dispatcher                          & dispatcher,
     std::shared_ptr<RingBufferHttpCache>         cache,
     std::unique_ptr<RingBufferLookupContext>  && lookup
