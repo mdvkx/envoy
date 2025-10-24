@@ -251,7 +251,7 @@ auto  RingBufferHttpCache::insert ( const Key  & key, Value  value )
 }
 // --------------------------------------------------------------------------
 [[nodiscard]]
-auto  RingBufferHttpCache::insert ( const Key  & key, const std::function<Value ()>  & lazy )
+auto  RingBufferHttpCache::insert ( const Key  & key, absl::AnyInvocable<Value ()>  lazy )
   -> bool
 {
   assert ( 0 );

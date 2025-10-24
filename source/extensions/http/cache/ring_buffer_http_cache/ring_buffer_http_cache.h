@@ -73,7 +73,7 @@ struct  RingBufferHttpCache
     -> bool;
 
   [[nodiscard]]
-  auto  insert ( const Key  & key, const std::function<Value ()>  & lazy )
+  auto  insert ( const Key  & key, absl::AnyInvocable<Value ()>  lazy )
     -> bool;
 
 };
