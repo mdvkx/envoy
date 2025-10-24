@@ -9,7 +9,7 @@ envoy_extension_package()
 envoy_cc_extension(
   name   = "config",
   srcs   = [ "ring_buffer_http_cache.cc" ],
-  hdrs   = [ "ring_buffer_http_cache.h" ],
+  hdrs   = [ "ring_buffer_http_cache.h", "ring_buffer.h" ],
   copts  = [ "-Wno-error" ],
 
   deps = [

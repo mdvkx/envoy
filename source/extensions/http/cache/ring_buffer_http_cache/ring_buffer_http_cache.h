@@ -4,6 +4,7 @@
 
 #include "source/common/protobuf/protobuf.h"  // ProtobufWkt
 #include "source/extensions/filters/http/cache/http_cache.h"  // HttpCache
+#include "ring_buffer.h"
 
 // --------------------------------------------------------------------------
 
@@ -17,19 +18,31 @@ namespace Cache
 {
 
 
+struct  Response
+{
+  Http::ResponseHeaderMapPtr   m_ResponseHeaders;
+  Http::ResponseTrailerMapPtr  m_ResponseTrailers;
+  ResponseMetadata             m_ResponseMetadata;
+  std::string                  m_ResponseBody;
+};
+
+
 struct  RingBufferHttpCache
   : public HttpCache,
     public std::enable_shared_from_this<RingBufferHttpCache>  // TODO:  enable shared from this?
 {
-  using  Self = RingBufferHttpCache;
+  using  Self   = RingBufferHttpCache;
 
   static constexpr std::string_view  CACHE_INFO_NAME = "envoy.extensions.http.cache.ring_buffer";
 
-  using  Key = int;
-  using  Value = int;
+  using  Key    = LookupRequest;
+  using  Value  = Response;
+
+  using  Entry  = std::pair<std::string, Value>;
 
   // TODO:
   // ring buffer
+  RingBuffer<Entry, 4>  m_Buffer;
 
   // from  HttpCache
   [[nodiscard]]
@@ -66,7 +79,7 @@ struct  RingBufferHttpCache
 
   [[nodiscard]]
   auto  lookup ( const Key  & key ) const
-    -> Value *;
+    -> std::optional<Value>;
 
   [[nodiscard]]
   auto  insert ( const Key  & key, Value  value )

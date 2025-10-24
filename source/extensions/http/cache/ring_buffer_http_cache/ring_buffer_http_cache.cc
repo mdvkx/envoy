@@ -29,6 +29,7 @@ struct  RingBufferLookupContext : public LookupContext
   //  simple http cache uses std::shared_ptr<bool>, but i dunno why, it doesn't make it thread safe
   bool  m_Stop = false;
 
+  std::optional<Response>  m_Response;  // nice to have:  lazy initialize? eg. Lazy<Response>
 
 
         RingBufferLookupContext (
@@ -46,15 +47,29 @@ struct  RingBufferLookupContext : public LookupContext
     -> void
     override
   {
-    // probe cache for `m_Request . key ()`.
-    // if found:  create `LookupResult` and pass it to the %(callback)
-    // not found
-    m_Dispatcher . post ( [ callback = std::move ( callback ), stop = &m_Stop ] ( ) mutable
+    m_Response = [ & ] ( ) {
+      auto  cache = m_Cache . lock ();
+      assert ( cache != nullptr );
+      return  cache -> lookup ( m_Request );
+    } ();
+
+    auto  result = [ & ] ( ) {
+      if ( m_Response )
+        return  m_Request . makeLookupResult ( std::move ( m_Response -> m_ResponseHeaders ), std::move ( m_Response -> m_ResponseMetadata ), m_Response -> m_ResponseBody . length () );
+      else
+        return  LookupResult {};
+    } ();
+
+    m_Dispatcher . post ( [
+      callback  = std::move ( callback ),
+      result    = std::move ( result ),
+      stop      = &m_Stop,  // TODO:  not thread-safe
+      eof       = m_Response -> m_ResponseBody . empty () && m_Response -> m_ResponseTrailers == nullptr
+    ] ( ) mutable
       -> void
     {
-      if ( !(*stop) ) {
-        std::move ( callback ) ( LookupResult {}, /* ???= */ false );
-      }
+      if ( !(*stop) )  // TODO:  not thread-safe
+        std::move ( callback ) ( std::move ( result ), /* ???= */ false );
     } );
   }
   // ------------------------------------------------------------------------
@@ -112,10 +127,13 @@ struct  RingBufferInsertContext : public InsertContext
     -> void
   {
     // response is complete, insert into cache
-    if ( auto  cache = m_Cache . lock () )
-      assert ( 0 );
-    else
-      assert ( 0 );
+    auto  cache = m_Cache . lock ();
+    assert ( cache != nullptr );
+    cache -> insert ( m_Lookup -> m_Request, [ this ] ( ) mutable
+      -> Response
+    {
+      return  Response { std::move ( m_ResponseHeaders ), std::move ( m_ResponseTrailers ), std::move ( m_ResponseMetadata ), std::move ( m_ResponseBody ) };
+    } );
   }
   // ------------------------------------------------------------------------
   auto  insertHeaders (
@@ -235,23 +253,49 @@ auto  RingBufferHttpCache::cacheInfo ( ) const
 // --------------------------------------------------------------------------
 [[nodiscard]]
 auto  RingBufferHttpCache::lookup ( const Key  & key ) const
-  -> Value *
+  -> std::optional<Value>
 {
-  assert ( 0 );
+  const auto  & headers = key . requestHeaders ();
+  const auto  q = absl::StrCat ( headers . getHostValue (), headers . getPathValue () );
+  const auto  entry = m_Buffer . lookup ( [ & ] ( const auto  & p )
+    -> bool
+  {
+    return  q == p . first;
+  } );
+  if ( entry == nullptr )
+    return  std::nullopt;
+  // copy
+  const auto  & [ _, value ] = *entry;
+  return  Response {
+    Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *value . m_ResponseHeaders ),
+    value . m_ResponseTrailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *value . m_ResponseTrailers ) : nullptr,
+    value . m_ResponseMetadata,
+    value . m_ResponseBody
+  };
 }
 // --------------------------------------------------------------------------
 [[nodiscard]]
 auto  RingBufferHttpCache::insert ( const Key  & key, Value  value )
   -> bool
 {
-  assert ( 0 );
+  return  this -> insert ( key, [ value = std::move ( value ) ] ( ) mutable
+    -> Value
+  {
+    return  std::move ( value );  // rvo doesn't pick it up. weird, but ok
+    assert ( 0 );
+  } );
 }
 // --------------------------------------------------------------------------
 [[nodiscard]]
 auto  RingBufferHttpCache::insert ( const Key  & key, absl::AnyInvocable<Value ()>  lazy )
   -> bool
 {
-  assert ( 0 );
+  const auto  & headers = key . requestHeaders ();
+  const auto  q = absl::StrCat ( headers . getHostValue (), headers . getPathValue () );
+  std::cout << q << "\n";
+  std::cout . flush ();
+  m_Buffer . push ( q, lazy () );
+  return  true;
 }
 
 
