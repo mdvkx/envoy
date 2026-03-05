@@ -204,6 +204,15 @@ struct  RingBufferInsertContext : public InsertContext
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
 
+[[nodiscard]]
+static auto  derive_internal_key ( const LookupRequest  & key )
+  -> std::string
+{
+  const auto  & headers = key . requestHeaders ();
+  const auto  res = absl::StrCat ( headers . getHostValue (), headers . getPathValue () );
+  return  res;
+}
+
 // --------------------------------------------------------------------------
 [[nodiscard]]
 auto  RingBufferHttpCache::makeLookupContext (
@@ -255,12 +264,11 @@ auto  RingBufferHttpCache::cacheInfo ( ) const
 auto  RingBufferHttpCache::lookup ( const Key  & key ) const
   -> std::optional<Value>
 {
-  const auto  & headers = key . requestHeaders ();
-  const auto  q = absl::StrCat ( headers . getHostValue (), headers . getPathValue () );
+  const auto  internal_key = derive_internal_key ( key );
   const auto  entry = m_Buffer . lookup ( [ & ] ( const auto  & p )
     -> bool
   {
-    return  q == p . first;
+    return  internal_key == p . first;
   } );
   if ( entry == nullptr )
     return  std::nullopt;
@@ -290,11 +298,10 @@ auto  RingBufferHttpCache::insert ( const Key  & key, Value  value )
 auto  RingBufferHttpCache::insert ( const Key  & key, absl::AnyInvocable<Value ()>  lazy )
   -> bool
 {
-  const auto  & headers = key . requestHeaders ();
-  const auto  q = absl::StrCat ( headers . getHostValue (), headers . getPathValue () );
-  std::cout << q << "\n";
+  const auto  internal_key = derive_internal_key ( key );
+  std::cout << internal_key << "\n";
   std::cout . flush ();
-  m_Buffer . push ( q, lazy () );
+  m_Buffer . push ( internal_key, lazy () );
   return  true;
 }
 
