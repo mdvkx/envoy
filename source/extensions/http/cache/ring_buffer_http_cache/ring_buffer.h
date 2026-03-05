@@ -82,6 +82,11 @@ struct  RingBuffer
   usize  m_Size = 0;
   Storage<T_, Capacity_>  m_Storage;
   // ------------------------------------------------------------------------
+  ~RingBuffer ( )
+  {
+    this -> clear ();
+  }
+  // ------------------------------------------------------------------------
   [[nodiscard]]
   constexpr auto  capacity ( ) const
     -> usize
@@ -141,6 +146,15 @@ struct  RingBuffer
     -> bool
   {
     return  this -> size () >= this -> capacity ();
+  }
+  // ------------------------------------------------------------------------
+  auto  clear ( )
+    -> void
+  {
+    for ( usize  i = 0; i < this -> size (); i ++ )
+      std::destroy_at ( &m_Storage [ i ] );
+    m_Size = 0;
+    m_Wr = 0;
   }
   // ------------------------------------------------------------------------
   [[nodiscard]]
