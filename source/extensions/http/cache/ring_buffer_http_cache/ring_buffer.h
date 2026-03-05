@@ -14,10 +14,10 @@ template
   typename   T_,
   usize      Capacity_
 >
-struct  aligned_storage_t
+struct  Storage
   final
 {
-  using  Self = aligned_storage_t;
+  using  Self = Storage;
 
   static_assert ( Capacity_ != 0 );
 
@@ -79,7 +79,7 @@ struct  RingBuffer
 
   usize  m_Wr = 0;
   usize  m_Size = 0;
-  aligned_storage_t<T_, Capacity_>  m_Storage;
+  Storage<T_, Capacity_>  m_Storage;
   // ------------------------------------------------------------------------
   [[nodiscard]]
   constexpr auto  capacity ( ) const
