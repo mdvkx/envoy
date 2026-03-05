@@ -104,7 +104,7 @@ services:
     volumes:
     - ${ENVOY_DOCKER_BUILD_DIR:-/tmp/envoy-docker-build}:/build
     - ${SOURCE_DIR:-..}:/source
-    - ${ENVOY_GPG_DIR:-${HOME}/.gnupg}:/build/.gnupg
+    - ${ENVOY_GPG_DIR:-~/.gnupg}:/build/.gnupg
     - ${SHARED_TMP_DIR:-/tmp/bazel-shared}:${SHARED_TMP_DIR:-/tmp/bazel-shared}
 
   envoy-build-dind:
