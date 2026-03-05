@@ -53,7 +53,8 @@ struct  Storage
   auto  data ( ) const
     -> const T_ *
   {
-    return  reinterpret_cast<const T_ *> ( m_Data );
+    // https://en.cppreference.com/w/cpp/utility/launder.html
+    return  std::launder ( reinterpret_cast<const T_ *> ( m_Data ) );
   }
   // ------------------------------------------------------------------------
   [[nodiscard]]
