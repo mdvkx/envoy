@@ -1,12 +1,13 @@
 
 SHELL = /bin/sh
 
-.PHONY:  default compdb docker docker-build-dev docker-build-dev-server-only docker-build-dev-test
+PHONY = default compdb docker docker-build-dev docker-build-dev-server-only docker-build-dev-test
+.PHONY:  $(PHONY)
 
 DOCKER = env ENVOY_DOCKER_BUILD_DIR="${HOME}"/envoy-docker-build ./ci/run_envoy_docker.sh
 
 default:
-	@echo "$(DOCKER)"
+	@echo "targets: $(PHONY)"
 
 compdb:
 	ENVOY_GEN_COMPDB_OPTIONS="--vscode --exclude_contrib" ./ci/do_ci.sh refresh_compdb
