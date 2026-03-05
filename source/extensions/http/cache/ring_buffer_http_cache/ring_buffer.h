@@ -116,10 +116,10 @@ struct  RingBuffer
   }
   // ------------------------------------------------------------------------
   [[nodiscard]]
-  auto  contains ( const std::function<bool (const T_ &)>  & pred ) const
+  auto  contains ( const std::function<bool (const T_ &)>  & predicate ) const
     -> bool
   {
-    return  this -> lookup ( pred ) != nullptr;
+    return  this -> lookup ( predicate ) != nullptr;
   }
   // ------------------------------------------------------------------------
   [[nodiscard]]
