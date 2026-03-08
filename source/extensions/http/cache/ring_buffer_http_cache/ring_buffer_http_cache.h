@@ -6,6 +6,7 @@
 #include <string>  // string
 #include <string_view>  // string_view
 
+namespace  Envoy::Extensions::HttpFilters::Cache {
 
 using namespace  std::literals;  // ""sv
 
@@ -50,3 +51,5 @@ struct  RingBufferHttpCacheFactory : public HttpCacheFactory
   // HttpCacheFactory
   auto  getCache ( const envoy::extensions::filters::http::cache::v3::CacheConfig & , Server::Configuration::FactoryContext &  ) -> std::shared_ptr<HttpCache> override;
 };
+
+}

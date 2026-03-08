@@ -8,6 +8,7 @@
 #include <cassert>  // assert
 #include <memory>  // shared_ptr, unique_ptr, weak_ptr
 #include <utility>  // move
+namespace  Envoy::Extensions::HttpFilters::Cache {
 // --------------------------------------------------------------------------
 struct  RingBufferHttpCacheLookupContext : public LookupContext
 {
@@ -49,6 +50,12 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   Event::Dispatcher & m_Dispatcher;
   std::weak_ptr<RingBufferHttpCache>  m_Cache;
   std::unique_ptr<RingBufferHttpCacheLookupContext>  m_Lookup;
+
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
+  ResponseMetadata  m_Metadata;
+  std::string  m_Body;
+
         RingBufferHttpCacheInsertContext ( Event::Dispatcher & dispatcher,
                                            std::shared_ptr<RingBufferHttpCache>  cache,
                                            std::unique_ptr<RingBufferHttpCacheLookupContext> && lookup )
@@ -56,6 +63,14 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
         , m_Cache { cache }
         , m_Lookup { std::move ( lookup ) }
   {
+  }
+  auto  post ( ) -> void
+  {
+    assert ( 0 );
+  }
+  auto  commit ( ) -> bool
+  {
+    assert ( 0 );
   }
   auto  insertHeaders   ( const Http::ResponseHeaderMap & headers,
                           const ResponseMetadata & metadata,
@@ -92,6 +107,7 @@ namespace
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::cacheInfo ( ) const -> CacheInfo
 {
+  return  CacheInfo { . name_ = CACHE_NAME };
   assert ( 0 );
 }
 // --------------------------------------------------------------------------
@@ -147,4 +163,5 @@ auto  RingBufferHttpCacheFactory::createEmptyConfigProto ( ) -> std::unique_ptr<
 auto  RingBufferHttpCacheFactory::getCache ( const envoy::extensions::filters::http::cache::v3::CacheConfig & , Server::Configuration::FactoryContext &  ) -> std::shared_ptr<HttpCache>
 {
   return  std::make_shared<RingBufferHttpCache> ();
+}
 }
