@@ -9,6 +9,41 @@
 #include <memory>  // shared_ptr, unique_ptr, weak_ptr
 #include <utility>  // move
 // --------------------------------------------------------------------------
+struct  RingBufferHttpCacheLookupContext : public LookupContext
+{
+  Event::Dispatcher & m_Dispatcher;
+  std::weak_ptr<RingBufferHttpCache>  m_Cache;
+  LookupRequest  m_Request;
+        RingBufferHttpCacheLookupContext ( Event::Dispatcher & dispatcher,
+                                           std::shared_ptr<RingBufferHttpCache>  cache,
+                                           LookupRequest && request )
+        : m_Dispatcher { dispatcher }
+        , m_Cache { cache }
+        , m_Request { std::move ( request ) }
+  {
+  }
+  auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
+  {
+    assert ( 0 );
+  }
+  auto  getBody         ( const AdjustedByteRange & range,
+                          LookupBodyCallback && callback ) -> void override
+  {
+    assert ( 0 );
+  }
+  auto  getTrailers     ( LookupTrailersCallback && callback ) -> void override
+  {
+    assert ( 0 );
+  }
+  // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
+  // should cancel any outstanding async operations and, if necessary, it should block on that
+  // cancellation to avoid data races."
+  auto  onDestroy       ( ) -> void override
+  {
+    assert ( 0 );
+  }
+};
+// --------------------------------------------------------------------------
 struct  RingBufferHttpCacheInsertContext : public InsertContext
 {
   Event::Dispatcher & m_Dispatcher;
@@ -37,41 +72,6 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   }
   auto  insertTrailers  ( const Http::ResponseTrailerMap & trailers,
                           InsertCallback  callback ) -> void override
-  {
-    assert ( 0 );
-  }
-  // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
-  // should cancel any outstanding async operations and, if necessary, it should block on that
-  // cancellation to avoid data races."
-  auto  onDestroy       ( ) -> void override
-  {
-    assert ( 0 );
-  }
-};
-// --------------------------------------------------------------------------
-struct  RingBufferHttpCacheLookupContext : public LookupContext
-{
-  Event::Dispatcher & m_Dispatcher;
-  std::weak_ptr<RingBufferHttpCache>  m_Cache;
-  LookupRequest  m_Request;
-        RingBufferHttpCacheLookupContext ( Event::Dispatcher & dispatcher,
-                                           std::shared_ptr<RingBufferHttpCache>  cache,
-                                           LookupRequest && request )
-        : m_Dispatcher { dispatcher }
-        , m_Cache { cache }
-        , m_Request { std::move ( request ) }
-  {
-  }
-  auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
-  {
-    assert ( 0 );
-  }
-  auto  getBody         ( const AdjustedByteRange & range,
-                          LookupBodyCallback && callback ) -> void override
-  {
-    assert ( 0 );
-  }
-  auto  getTrailers     ( LookupTrailersCallback && callback ) -> void override
   {
     assert ( 0 );
   }
