@@ -89,6 +89,12 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   }
   auto  commit ( ) -> bool
   {
+    // TODO:  construct a Response from individual pieces, insert into the cache
+    auto  response = Response { std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Metadata ), std::move ( m_Body ) };
+    auto  cache = m_Cache . lock ();
+    if ( !cache )
+      throw  std::runtime_error { "insert context outlived the cache that created it" };
+    cache -> insert ( *m_Lookup, std::move ( response ) );
     assert ( 0 );
   }
 
@@ -98,26 +104,45 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
 
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  ResponseMetadata  m_Metadata;
-  std::string  m_Body;
+  ResponseMetadata  m_Metadata {};
+  std::string  m_Body = "";
 
   auto  insertHeaders   ( const Http::ResponseHeaderMap & headers,
                           const ResponseMetadata & metadata,
                           InsertCallback  callback,
-                          bool  eof ) -> void override
+                          bool  is_last ) -> void override
   {
-    assert ( 0 );
+    m_Headers  = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
+    m_Metadata = metadata;
+    if ( is_last )
+      this -> commit ();
+    m_Dispatcher . post ( [ callback = std::move ( callback ), is_last ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( true );
+    } );
   }
   auto  insertBody      ( const Buffer::Instance & fragment,
                           InsertCallback  callback,
-                          bool  eof ) -> void override
+                          bool  is_last ) -> void override
   {
-    assert ( 0 );
+    m_Body += fragment . toString ();  // TODO: inefficient? maybe use envoy's Buffer::* api instead
+    if ( is_last )
+      this -> commit ();
+    m_Dispatcher . post ( [ callback = std::move ( callback ). is_last ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( true );
+    } );
   }
   auto  insertTrailers  ( const Http::ResponseTrailerMap & trailers,
                           InsertCallback  callback ) -> void override
   {
-    assert ( 0 );
+    m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
+    if ( is_last )
+      this -> commit ();
+    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( true );
+    } );
   }
   // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
   // should cancel any outstanding async operations and, if necessary, it should block on that
