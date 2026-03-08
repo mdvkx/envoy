@@ -1,0 +1,52 @@
+#pragma once
+
+#include "source/extensions/filters/http/cache/http_cache.h"  // HttpCache
+#include <memory>  // shared_ptr, unique_ptr, enable_shared_from_this
+#include <optional>  // optional
+#include <string>  // string
+#include <string_view>  // string_view
+
+
+using namespace  std::literals;  // ""sv
+
+struct  Response
+{
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
+  ResponseMetadata  m_Metadata;
+  std::string  m_Body;
+};
+
+struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_this<RingBufferHttpCache>
+{
+  using  Key    = LookupRequest;
+  using  Value  = Response;
+
+  static constexpr auto  CACHE_NAME = "envoy.extensions.http.cache.ring_buffer_http_cache"sv;
+
+
+  auto  cacheInfo ( ) const -> CacheInfo override;
+  auto  makeLookupContext ( LookupRequest && request,
+                            Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<LookupContext> override;
+  auto  makeInsertContext ( std::unique_ptr<LookupContext> && lookup,
+                            Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<InsertContext> override;
+  auto  updateHeaders ( const LookupContext & lookup,
+                        const Http::ResponseHeaderMap & headers,
+                        const ResponseMetadata & metadata,
+                        UpdateHeadersCallback callback ) -> void override;
+
+  auto  lookup ( const Key & key ) const -> std::optional<Value>;
+  auto  contains ( const Key & key ) const -> bool;
+  auto  insert ( const Key & key,
+                 Value && value ) -> void;
+};
+
+struct  RingBufferHttpCacheFactory : public HttpCacheFactory
+{
+  // UntypedFactory
+  auto  name ( ) const -> std::string override;
+  // TypedFactory
+  auto  createEmptyConfigProto ( ) -> std::unique_ptr<ProtobufTypes::Message> override;
+  // HttpCacheFactory
+  auto  getCache ( const envoy::extensions::filters::http::cache::v3::CacheConfig & , Server::Configuration::FactoryContext &  ) -> std::shared_ptr<HttpCache> override;
+};
