@@ -125,7 +125,11 @@ auto  RingBufferHttpCache::makeLookupContext ( LookupRequest && request,
 auto  RingBufferHttpCache::makeInsertContext ( std::unique_ptr<LookupContext> && lookup,
                                                Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<InsertContext>
 {
-  return  std::make_unique<RingBufferHttpCacheInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::move ( lookup ) );
+  auto  * p = dynamic_cast<RingBufferHttpCacheLookupContext *> ( lookup . get () );
+  if ( p == nullptr )
+    throw  std::invalid_argument { "mismatch in lookup context type" };
+  lookup . release ();
+  return  std::make_unique<RingBufferHttpCacheInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::unique_ptr<RingBufferHttpCacheLookupContext> { p } );
   assert ( 0 );
 }
 // --------------------------------------------------------------------------
