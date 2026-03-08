@@ -137,8 +137,6 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
                           InsertCallback  callback ) -> void override
   {
     m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    if ( is_last )
-      this -> commit ();
     m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
