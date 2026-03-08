@@ -1,5 +1,6 @@
 #pragma once
 
+#include "source/common/protobuf/protobuf.h"  // Protobuf::Message
 #include "source/extensions/filters/http/cache/http_cache.h"  // HttpCache
 #include <memory>  // shared_ptr, unique_ptr, enable_shared_from_this
 #include <optional>  // optional
@@ -47,7 +48,7 @@ struct  RingBufferHttpCacheFactory : public HttpCacheFactory
   // UntypedFactory
   auto  name ( ) const -> std::string override;
   // TypedFactory
-  auto  createEmptyConfigProto ( ) -> std::unique_ptr<ProtobufTypes::Message> override;
+  auto  createEmptyConfigProto ( ) -> std::unique_ptr<Protobuf::Message> override;
   // HttpCacheFactory
   auto  getCache ( const envoy::extensions::filters::http::cache::v3::CacheConfig & , Server::Configuration::FactoryContext &  ) -> std::shared_ptr<HttpCache> override;
 };

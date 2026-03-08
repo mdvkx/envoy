@@ -12,17 +12,19 @@ namespace  Envoy::Extensions::HttpFilters::Cache {
 // --------------------------------------------------------------------------
 struct  RingBufferHttpCacheLookupContext : public LookupContext
 {
-  Event::Dispatcher & m_Dispatcher;
-  std::weak_ptr<RingBufferHttpCache>  m_Cache;
-  LookupRequest  m_Request;
-        RingBufferHttpCacheLookupContext ( Event::Dispatcher & dispatcher,
-                                           std::shared_ptr<RingBufferHttpCache>  cache,
-                                           LookupRequest && request )
+    RingBufferHttpCacheLookupContext ( Event::Dispatcher & dispatcher,
+                                       std::shared_ptr<RingBufferHttpCache>  cache,
+                                       LookupRequest && request )
         : m_Dispatcher { dispatcher }
         , m_Cache { cache }
         , m_Request { std::move ( request ) }
   {
   }
+
+  Event::Dispatcher & m_Dispatcher;
+  std::weak_ptr<RingBufferHttpCache>  m_Cache;
+  LookupRequest  m_Request;
+
   auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
   {
     assert ( 0 );
@@ -47,18 +49,10 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
 // --------------------------------------------------------------------------
 struct  RingBufferHttpCacheInsertContext : public InsertContext
 {
-  Event::Dispatcher & m_Dispatcher;
-  std::weak_ptr<RingBufferHttpCache>  m_Cache;
-  std::unique_ptr<RingBufferHttpCacheLookupContext>  m_Lookup;
 
-  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
-  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  ResponseMetadata  m_Metadata;
-  std::string  m_Body;
-
-        RingBufferHttpCacheInsertContext ( Event::Dispatcher & dispatcher,
-                                           std::shared_ptr<RingBufferHttpCache>  cache,
-                                           std::unique_ptr<RingBufferHttpCacheLookupContext> && lookup )
+    RingBufferHttpCacheInsertContext ( Event::Dispatcher & dispatcher,
+                                       std::shared_ptr<RingBufferHttpCache>  cache,
+                                       std::unique_ptr<RingBufferHttpCacheLookupContext> && lookup )
         : m_Dispatcher { dispatcher }
         , m_Cache { cache }
         , m_Lookup { std::move ( lookup ) }
@@ -72,6 +66,16 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   {
     assert ( 0 );
   }
+
+  Event::Dispatcher & m_Dispatcher;
+  std::weak_ptr<RingBufferHttpCache>  m_Cache;
+  std::unique_ptr<RingBufferHttpCacheLookupContext>  m_Lookup;
+
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
+  ResponseMetadata  m_Metadata;
+  std::string  m_Body;
+
   auto  insertHeaders   ( const Http::ResponseHeaderMap & headers,
                           const ResponseMetadata & metadata,
                           InsertCallback  callback,
@@ -155,7 +159,7 @@ auto  RingBufferHttpCacheFactory::name ( ) const -> std::string
   return  std::string { RingBufferHttpCache::CACHE_NAME };
 }
 // --------------------------------------------------------------------------
-auto  RingBufferHttpCacheFactory::createEmptyConfigProto ( ) -> std::unique_ptr<ProtobufTypes::Message>
+auto  RingBufferHttpCacheFactory::createEmptyConfigProto ( ) -> std::unique_ptr<Protobuf::Message>
 {
   return  std::make_unique<ProtobufWkt::Empty> ();  // TODO: custom protobuf config type
 }
