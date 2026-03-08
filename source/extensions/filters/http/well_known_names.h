@@ -20,6 +20,8 @@ public:
   const std::string BasicAuth = "envoy.filters.http.basic_auth";
   // Cache filter
   const std::string Cache = "envoy.filters.http.cache";
+  // Cache filter, 2
+  const std::string Cache2 = "envoy.filters.http.cache2";
   // CDN Loop filter
   const std::string CdnLoop = "envoy.filters.http.cdn_loop";
   // Compressor filter
@@ -64,6 +66,8 @@ public:
   const std::string RateLimit = "envoy.filters.http.ratelimit";
   // Router filter
   const std::string Router = "envoy.filters.http.router";
+  // Request coalescing filter
+  const std::string Rqc = "envoy.filters.http.rqc";
   // Health checking filter
   const std::string HealthCheck = "envoy.filters.http.health_check";
   // Lua filter

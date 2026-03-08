@@ -1,0 +1,214 @@
+
+#include "./filter.h"
+
+#include "source/common/http/header_map_impl.h"  // createHeaderMap
+
+#include <cassert>
+#include <type_traits>
+
+template <typename  Enum_>
+[[nodiscard]]
+constexpr auto  to_underlying ( Enum_  e ) noexcept -> std::underlying_type_t<Enum_>
+{
+  static_assert ( std::is_enum_v<Enum_>,
+                  "the argument e must be a complete enumeration type" );
+  return  static_cast<std::underlying_type_t<Enum_> >  ( e );
+}
+
+namespace  Envoy::Extensions::HttpFilters::Rqc
+{
+
+auto  Filter::onDestroy ( ) -> void
+{
+  ENVOY_LOG (
+    trace,
+    "@@@ destroy  // state = {}, stream id = {}",
+    to_underlying ( m_State ),
+    this -> decoder_callbacks_ -> streamId ()
+  );
+
+  m_State = State::Destroyed;
+}
+
+auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
+                              bool   ) -> Http::FilterHeadersStatus
+{
+  ENVOY_LOG (
+    trace,
+    "@@@ decoding headers  // state = {}, stream id = {}",
+    to_underlying ( m_State ),
+    this -> decoder_callbacks_ -> streamId ()
+  );
+
+  m_Key = Self::derive_key ( headers );
+  if ( ! m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Ticket {}; }, [ this ] ( Ticket & x ) -> void
+  {
+    x . m_Waiting . emplace_back ( this -> shared_from_this () );
+  } ) )
+  {
+    m_State = State::Subscriber;
+    return  Http::FilterHeadersStatus::StopIteration;
+  }
+  else
+  {
+    m_State = State::Publisher;
+    return  Http::FilterHeadersStatus::Continue;
+  }
+}
+
+auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
+                              bool  is_last ) -> Http::FilterHeadersStatus
+{
+  ENVOY_LOG (
+    trace,
+    "@@@ encoding headers  // state = {}, stream id = {}",
+    to_underlying ( m_State ),
+    this -> decoder_callbacks_ -> streamId ()
+  );
+
+  switch ( m_State )
+  {
+    case  State::Initial:  // can happen when an earlier decoder filter stops iteration and submits data to encode, it's a bit weird
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Publisher:
+      if ( auto  x = m_Cache -> remove ( m_Key );
+           x . has_value () )
+      {
+        m_Waiting = std::move ( x -> m_Waiting );
+        auto  msg = std::make_shared<const Msg> ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
+        for ( auto  w : m_Waiting )
+          w -> receive_msg ( msg );
+      }
+      else
+      {
+        assert ( 0 && "i'm the publisher but the request i registered is not there anymore, what." );
+      }
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
+}
+
+auto  Filter::encodeData    ( Buffer::Instance & body,
+                              bool  is_last ) -> Http::FilterDataStatus
+{
+  ENVOY_LOG (
+    trace,
+    "@@@ encoding {} bytes of body  // state = {}, stream id = {}",
+    body . length (),
+    to_underlying ( m_State ),
+    this -> decoder_callbacks_ -> streamId ()
+  );
+
+  switch ( m_State )
+  {
+    case  State::Initial:  // can happen when an earlier decoder filter stops iteration and submits data to encode
+      return  Http::FilterDataStatus::Continue;
+      break;
+    case  State::Publisher:
+    {
+      auto  msg = std::make_shared<const Msg> ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( body ), is_last } );
+      for ( auto  w : m_Waiting )
+        w -> receive_msg ( msg );
+      return  Http::FilterDataStatus::Continue;
+      break;
+    }
+    case  State::Subscriber:
+      return  Http::FilterDataStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
+}
+
+auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
+{
+  ENVOY_LOG (
+    trace,
+    "@@@ encoding trailers  // state = {}, stream id = {}",
+    to_underlying ( m_State ),
+    this -> decoder_callbacks_ -> streamId ()
+  );
+
+  switch ( m_State )
+  {
+    case  State::Initial:  // can happen when an earlier decoder filter stops iteration and submits data to encode
+      return  Http::FilterTrailersStatus::Continue;
+      break;
+    case  State::Publisher:
+    {
+      auto  msg = std::make_shared<const Msg> ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
+      for ( auto  w : m_Waiting )
+        w -> receive_msg ( msg );
+      return  Http::FilterTrailersStatus::Continue;
+      break;
+    }
+    case  State::Subscriber:
+      return  Http::FilterTrailersStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
+}
+
+[[nodiscard]]
+auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
+{
+  return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
+}
+
+auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
+{
+  if ( m_State == State::Destroyed )
+    return;
+  assert ( m_State == State::Subscriber );
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ msg, wp = this -> weak_from_this () ] ( ) -> void
+  {
+    auto  p = wp . lock ();
+    if ( ! p
+         || p -> m_State == State::Destroyed )
+      return;
+    std::visit ( [ p ] ( const auto & x ) -> void
+    {
+      using  X = std::remove_cvref_t<decltype ( x )>;
+      if constexpr ( std::is_same_v<X, MsgHeaders> )
+      {
+        auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
+        p -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
+      }
+      else if constexpr ( std::is_same_v<X, MsgBody> )
+      {
+        assert ( x . m_Body );
+        auto  body = Buffer::OwnedImpl { *x . m_Body };
+        p -> decoder_callbacks_ -> encodeData ( body, x . m_Last );
+      }
+      else if constexpr ( std::is_same_v<X, MsgTrailers> )
+      {
+        assert ( x . m_Trailers );
+        auto  trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *x . m_Trailers );
+        p -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
+      }
+      else
+      {
+        assert ( 0 && "unreachable!" );
+      }
+    }, *msg );
+  } );
+}
+
+}
+
+namespace  Envoy::Extensions::HttpFilters::Rqc
+{
+
+REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
+
+}

@@ -4,7 +4,7 @@ SHELL = /bin/sh
 PHONY = default compdb docker docker-build-dev docker-build-dev-server-only docker-build-dev-test
 .PHONY:  $(PHONY)
 
-DOCKER = env ENVOY_DOCKER_BUILD_DIR="${HOME}"/envoy-docker-build ./ci/run_envoy_docker.sh
+DOCKER = env ENVOY_DOCKER_BUILD_DIR="${HOME}"/envoy-docker-builddir ./ci/run_envoy_docker.sh
 
 default:
 	@echo "targets: $(PHONY)"

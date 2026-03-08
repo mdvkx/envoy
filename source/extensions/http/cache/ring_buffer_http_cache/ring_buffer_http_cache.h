@@ -1,132 +1,75 @@
 #pragma once
 
-#include <cassert>
-
-#include "source/common/protobuf/protobuf.h"  // ProtobufWkt
+#include "source/common/protobuf/protobuf.h"  // Protobuf::Message
+#include "source/common/protobuf/utility.h"  // MessageUtil
 #include "source/extensions/filters/http/cache/http_cache.h"  // HttpCache
-#include "ring_buffer.h"
+#include <memory>  // shared_ptr, unique_ptr, enable_shared_from_this
+#include <optional>  // optional
+#include <string>  // string
+#include <string_view>  // string_view
 
-// --------------------------------------------------------------------------
+// notes:  i dont like aliases for things like unique_ptr<X>, i find them opaque, so i dont use them
 
-namespace Envoy
-{
-namespace Extensions
-{
-namespace HttpFilters
-{
-namespace Cache
-{
+namespace  Envoy::Extensions::HttpFilters::Cache {
 
+using namespace  std::literals;  // ""sv
 
 struct  Response
 {
-  Http::ResponseHeaderMapPtr   m_ResponseHeaders;
-  Http::ResponseTrailerMapPtr  m_ResponseTrailers;
-  ResponseMetadata             m_ResponseMetadata;
-  std::string                  m_ResponseBody;
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
+  ResponseMetadata  m_Metadata {};
+  std::string  m_Body = "";
 };
 
+/*
+struct  Entry
+{
+  std::shared_future<Response>  m_Response;
+};
+*/
 
-struct  RingBufferHttpCache
-  : public HttpCache,
-    public std::enable_shared_from_this<RingBufferHttpCache>  // TODO:  enable shared from this?
+struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_this<RingBufferHttpCache>
 {
   using  Self   = RingBufferHttpCache;
-
-  static constexpr std::string_view  CACHE_INFO_NAME = "envoy.extensions.http.cache.ring_buffer";
 
   using  Key    = LookupRequest;
   using  Value  = Response;
 
-  using  Entry  = std::pair<std::string, Value>;
+  static constexpr auto  CACHE_NAME = "envoy.extensions.http.cache.ring_buffer_http_cache"sv;
 
-  // TODO:
-  // ring buffer
-  RingBuffer<Entry, 4>  m_Buffer;
+  mutable std::mutex  m_Mtx;
+  std::unordered_map
+  < Envoy::Extensions::HttpFilters::Cache::Key  // generated via protobuf, see key.pb.h; fqn because Key is also a member type
+   , Value
+   , MessageUtil
+   , MessageUtil
+   >  m_Cache;  // TODO: ring buffer
 
-  // from  HttpCache
-  [[nodiscard]]
-  auto  makeLookupContext (
-    LookupRequest                 && request,
-    Http::StreamFilterCallbacks    & callbacks
-  )
-    -> LookupContextPtr
-    override;
+  auto  cacheInfo ( ) const -> CacheInfo override;
+  auto  makeLookupContext ( LookupRequest && request,
+                            Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<LookupContext> override;
+  auto  makeInsertContext ( std::unique_ptr<LookupContext> && lookup,
+                            Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<InsertContext> override;
+  auto  updateHeaders ( const LookupContext & lookup,
+                        const Http::ResponseHeaderMap & headers,
+                        const ResponseMetadata & metadata,
+                        UpdateHeadersCallback callback ) -> void override;
 
-  [[nodiscard]]
-  auto  makeInsertContext (
-    LookupContextPtr              && lookup_context,
-    Http::StreamFilterCallbacks    & callbacks
-  )
-    -> InsertContextPtr
-    override;
-
-  auto  updateHeaders (
-    const LookupContext            & lookup_context,
-    const Http::ResponseHeaderMap  & response_headers,
-    const ResponseMetadata         & metadata,
-    UpdateHeadersCallback            on_complete
-  )
-    -> void
-    override;
-
-  [[nodiscard]]
-  auto  cacheInfo ( ) const
-    -> CacheInfo
-    override;
-
-  // ----------------------------------------------------
-
-  [[nodiscard]]
-  auto  lookup ( const Key  & key ) const
-    -> std::optional<Value>;
-
-  [[nodiscard]]
-  auto  insert ( const Key  & key, Value  value )
-    -> bool;
-
-  [[nodiscard]]
-  auto  insert ( const Key  & key, absl::AnyInvocable<Value ()>  lazy )
-    -> bool;
-
+  auto  lookup ( const Key & key ) const -> std::optional<Value>;
+  auto  contains ( const Key & key ) const -> bool;
+  auto  insert ( const Key & key,
+                 Value && value ) -> void;
 };
 
 struct  RingBufferHttpCacheFactory : public HttpCacheFactory
 {
-  using  Self = RingBufferHttpCacheFactory;
-
-  // ------------------------------------------------------------------------
-  [[nodiscard]]
-  auto  name ( ) const
-    -> std::string
-    override
-  {
-    return  std::string { RingBufferHttpCache::CACHE_INFO_NAME };
-  }
-  // ------------------------------------------------------------------------
-  [[nodiscard]]
-  auto  createEmptyConfigProto ( )
-    -> ProtobufTypes::MessagePtr
-    override
-  {
-    return  std::make_unique<ProtobufWkt::Empty>  ();
-    //return  std::make_unique<envoy::extensions::http::cache::simple_http_cache::v3::RingBufferHttpCacheConfig>  ();
-  }
-  // ------------------------------------------------------------------------
-  [[nodiscard]]
-  auto  getCache (
-    [[maybe_unused]]
-    const envoy::extensions::filters::http::cache::v3::CacheConfig   & config,  // the fuck?
-    Server::Configuration::FactoryContext                            & context
-  )
-    -> std::shared_ptr<HttpCache>
-    override
-  {
-    return  std::make_shared<RingBufferHttpCache> ();
-  }
+  // UntypedFactory
+  auto  name ( ) const -> std::string override;
+  // TypedFactory
+  auto  createEmptyConfigProto ( ) -> std::unique_ptr<Protobuf::Message> override;
+  // HttpCacheFactory
+  auto  getCache ( const envoy::extensions::filters::http::cache::v3::CacheConfig & , Server::Configuration::FactoryContext &  ) -> std::shared_ptr<HttpCache> override;
 };
 
-} // namespace Cache
-} // namespace HttpFilters
-} // namespace Extensions
-} // namespace Envoy
+}
