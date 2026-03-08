@@ -7,6 +7,8 @@
 #include "source/extensions/filters/http/cache/http_cache.h"  // InsertContext, LookupContext
 #include <cassert>  // assert
 #include <memory>  // shared_ptr, unique_ptr, weak_ptr
+#include <optional>  // optional
+#include <stdexcept>  // invalid_argument, runtime_error
 #include <utility>  // move
 namespace  Envoy::Extensions::HttpFilters::Cache {
 // --------------------------------------------------------------------------
@@ -25,18 +27,40 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
   std::weak_ptr<RingBufferHttpCache>  m_Cache;
   LookupRequest  m_Request;
 
+  std::optional<Response>  m_Response;
+
   auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
   {
-    assert ( 0 );
+    auto  cache = m_Cache . lock ();
+    if ( !cache )
+      throw  std::runtime_error { "lookup context outlived the cache that created it" };
+    m_Response = cache -> lookup ( m_Request );
+    auto  result = m_Response . has_value () ? m_Request . makeLookupResult ( std::move ( m_Response -> m_Headers ), std::move ( m_Response -> m_Metadata ), m_Response -> m_Body . length () ) : LookupResult {};
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = !m_Response . has_value () || ( m_Response -> m_Body . empty () && m_Response -> m_Trailers == nullptr ) ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( std::move ( result ), is_last );
+    } );
   }
   auto  getBody         ( const AdjustedByteRange & range,
                           LookupBodyCallback && callback ) -> void override
   {
-    assert ( 0 );
+    assert ( m_Response . has_value () );
+    assert ( range . end () <= m_Response . m_Body . length () );
+    auto  result = std::make_unique<Buffer::OwnedImpl> ( std::string_view { m_Response -> m_Body } . substr ( range . begin (), range . length () ) );
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr  ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( std::move ( result ), is_last );
+    } );
   }
   auto  getTrailers     ( LookupTrailersCallback && callback ) -> void override
   {
-    assert ( 0 );
+    assert ( m_Response . has_value () );
+    assert ( m_Response -> m_Trailers != nullptr );
+    auto  result = std::move ( m_Response -> m_Trailers );
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ) ] ( ) mutable -> void
+    {
+      (std::move ( callback )) ( std::move ( result ) );
+    } );
   }
   // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
   // should cancel any outstanding async operations and, if necessary, it should block on that
@@ -125,6 +149,7 @@ auto  RingBufferHttpCache::makeLookupContext ( LookupRequest && request,
 auto  RingBufferHttpCache::makeInsertContext ( std::unique_ptr<LookupContext> && lookup,
                                                Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<InsertContext>
 {
+  // a kind of dynamic_pointer_cast for unique ptr
   auto  * p = dynamic_cast<RingBufferHttpCacheLookupContext *> ( lookup . get () );
   if ( p == nullptr )
     throw  std::invalid_argument { "mismatch in lookup context type" };
@@ -143,6 +168,7 @@ auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::lookup ( const Key & key ) const -> std::optional<Value>
 {
+  return  std::nullopt;
   assert ( 0 );
 }
 // --------------------------------------------------------------------------
