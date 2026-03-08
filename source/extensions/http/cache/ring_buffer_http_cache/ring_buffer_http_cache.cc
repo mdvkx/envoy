@@ -116,7 +116,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Metadata = metadata;
     if ( is_last )
       this -> commit ();
-    m_Dispatcher . post ( [ callback = std::move ( callback ), is_last ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
     } );
@@ -128,7 +128,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Body += fragment . toString ();  // TODO: inefficient? maybe use envoy's Buffer::* api instead
     if ( is_last )
       this -> commit ();
-    m_Dispatcher . post ( [ callback = std::move ( callback ). is_last ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
     } );
