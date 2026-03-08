@@ -31,6 +31,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
 
   auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
   {
+    assert ( !m_Response . has_value () );  // "it is a programming error to call this method twice", doesn't cover it 100%, but it's something
     auto  cache = m_Cache . lock ();
     if ( !cache )
       throw  std::runtime_error { "lookup context outlived the cache that created it" };
@@ -45,7 +46,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
                           LookupBodyCallback && callback ) -> void override
   {
     assert ( m_Response . has_value () );
-    assert ( range . end () <= m_Response . m_Body . length () );
+    assert ( range . end () <= m_Response -> m_Body . length () );
     auto  result = std::make_unique<Buffer::OwnedImpl> ( std::string_view { m_Response -> m_Body } . substr ( range . begin (), range . length () ) );
     m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr  ] ( ) mutable -> void
     {
