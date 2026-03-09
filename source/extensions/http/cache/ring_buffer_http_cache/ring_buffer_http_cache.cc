@@ -10,6 +10,14 @@
 #include <optional>  // optional
 #include <stdexcept>  // invalid_argument, runtime_error
 #include <utility>  // move
+template <typename  F_, typename  Signature_>
+struct  is_signature_invocable : std::false_type { };
+template <typename  F_, typename  R_, typename ...  Args_>
+struct  is_signature_invocable <F_, R_ (Args_ ...)> : std::bool_constant<std::is_invocable_r_v<R_, F_, Args_ ...> > { };
+template <typename  F_, typename  Signature_>
+constexpr auto  is_signature_invocable_v = is_signature_invocable<F_, Signature_>::value;
+template <typename  F_, typename  Signature_>
+concept  Fn = std::is_function_v<Signature_> && is_signature_invocable_v<F_, Signature_>;
 namespace  Envoy::Extensions::HttpFilters::Cache {
 // --------------------------------------------------------------------------
 struct  RingBufferHttpCacheLookupContext : public LookupContext
@@ -22,8 +30,8 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
         , m_Request { std::move ( request ) }
   {
   }
-  template <typename  F_>
-  auto  post (  F_ && f ) -> void
+  template <Fn<void ()>  F_>
+  auto  post ( F_ && f ) -> void
   {
     m_Dispatcher . post ( [ f = std::move ( f ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
@@ -93,8 +101,8 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
         , m_Lookup { std::move ( lookup ) }
   {
   }
-  template <typename  F_>
-  auto  post (  F_ && f ) -> void
+  template <Fn<void ()>  F_>
+  auto  post ( F_ && f ) -> void
   {
     m_Dispatcher . post ( [ f = std::move ( f ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
