@@ -8,6 +8,8 @@
 #include <string>  // string
 #include <string_view>  // string_view
 
+// notes:  i dont like aliases for things like unique_ptr<X>, i find them opaque, so i dont use them
+
 namespace  Envoy::Extensions::HttpFilters::Cache {
 
 using namespace  std::literals;  // ""sv
@@ -22,13 +24,15 @@ struct  Response
 
 struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_this<RingBufferHttpCache>
 {
+  using  Self   = RingBufferHttpCache;
+
   using  Key    = LookupRequest;
   using  Value  = Response;
 
   static constexpr auto  CACHE_NAME = "envoy.extensions.http.cache.ring_buffer_http_cache"sv;
 
   std::unordered_map
-  < Envoy::Extensions::HttpFilters::Cache::Key  // generated via protobuf, see key.pb.h
+  < Envoy::Extensions::HttpFilters::Cache::Key  // generated via protobuf, see key.pb.h; fqn because Key is also a member type
    , Value
    , MessageUtil
    , MessageUtil

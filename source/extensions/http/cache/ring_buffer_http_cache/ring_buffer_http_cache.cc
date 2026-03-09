@@ -163,7 +163,7 @@ namespace
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::cacheInfo ( ) const -> CacheInfo
 {
-  return  CacheInfo { . name_ = CACHE_NAME };
+  return  CacheInfo { . name_ = Self::CACHE_NAME };
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::makeLookupContext ( LookupRequest && request,
@@ -208,7 +208,7 @@ auto  RingBufferHttpCache::contains ( const Key & key ) const -> bool
 auto  RingBufferHttpCache::insert ( const Key & key,
                                     Value && value ) -> void
 {
-  m_Cache . emplace ( key . key (), std::move ( value ) );
+  m_Cache . insert_or_assign ( key . key (), std::move ( value ) );
 }
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
