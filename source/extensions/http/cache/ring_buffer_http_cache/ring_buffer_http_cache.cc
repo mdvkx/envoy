@@ -93,9 +93,9 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     auto  response = Response { std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Metadata ), std::move ( m_Body ) };
     auto  cache = m_Cache . lock ();
     if ( !cache )
-      throw  std::runtime_error { "insert context outlived the cache that created it" };
+      return  false; // throw  std::runtime_error { "insert context outlived the cache that created it" };
     cache -> insert ( m_Lookup -> m_Request, std::move ( response ) );
-    assert ( 0 );
+    return  true;
   }
 
   Event::Dispatcher & m_Dispatcher;
