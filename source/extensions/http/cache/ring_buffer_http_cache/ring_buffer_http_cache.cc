@@ -29,6 +29,8 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
 
   std::optional<Response>  m_Response;
 
+  bool  m_Done = false;
+
   auto  getHeaders      ( LookupHeadersCallback && callback ) -> void override
   {
     assert ( !m_Response . has_value () );  // "it is a programming error to call this method twice", doesn't cover it 100%, but it's something
@@ -37,9 +39,9 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
       throw  std::runtime_error { "lookup context outlived the cache that created it" };
     m_Response = cache -> lookup ( m_Request );
     auto  result = m_Response . has_value () ? m_Request . makeLookupResult ( std::move ( m_Response -> m_Headers ), std::move ( m_Response -> m_Metadata ), m_Response -> m_Body . length () ) : LookupResult {};
-    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = !m_Response . has_value () || ( m_Response -> m_Body . empty () && m_Response -> m_Trailers == nullptr ) ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = !m_Response . has_value () || ( m_Response -> m_Body . empty () && m_Response -> m_Trailers == nullptr ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( std::move ( result ), is_last );
+      if ( !done )  (std::move ( callback )) ( std::move ( result ), is_last );
     } );
   }
   auto  getBody         ( const AdjustedByteRange & range,
@@ -48,9 +50,9 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
     assert ( m_Response . has_value () );
     assert ( range . end () <= m_Response -> m_Body . length () );
     auto  result = std::make_unique<Buffer::OwnedImpl> ( std::string_view { m_Response -> m_Body } . substr ( range . begin (), range . length () ) );
-    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr  ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr, done = std::cref ( m_Done )  ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( std::move ( result ), is_last );
+      if ( !done )  (std::move ( callback )) ( std::move ( result ), is_last );
     } );
   }
   auto  getTrailers     ( LookupTrailersCallback && callback ) -> void override
@@ -58,9 +60,9 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
     assert ( m_Response . has_value () );
     assert ( m_Response -> m_Trailers != nullptr );
     auto  result = std::move ( m_Response -> m_Trailers );
-    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ) ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), result = std::move ( result ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( std::move ( result ) );
+      if ( !done )  (std::move ( callback )) ( std::move ( result ) );
     } );
   }
   // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
@@ -68,7 +70,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
   // cancellation to avoid data races."
   auto  onDestroy       ( ) -> void override
   {
-    assert ( 0 );
+    m_Done = true;
   }
 };
 // --------------------------------------------------------------------------
@@ -89,11 +91,11 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   }
   auto  commit ( ) -> bool
   {
-    // TODO:  construct a Response from individual pieces, insert into the cache
-    auto  response = Response { std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Metadata ), std::move ( m_Body ) };
     auto  cache = m_Cache . lock ();
     if ( !cache )
       return  false; // throw  std::runtime_error { "insert context outlived the cache that created it" };
+    // TODO:  construct a Response from individual pieces, insert into the cache
+    auto  response = Response { std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Metadata ), std::move ( m_Body ) };
     cache -> insert ( m_Lookup -> m_Request, std::move ( response ) );
     return  true;
   }
@@ -107,6 +109,8 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   ResponseMetadata  m_Metadata {};
   std::string  m_Body = "";
 
+  bool  m_Done = false;
+
   auto  insertHeaders   ( const Http::ResponseHeaderMap & headers,
                           const ResponseMetadata & metadata,
                           InsertCallback  callback,
@@ -116,9 +120,9 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Metadata = metadata;
     if ( is_last )
       this -> commit ();
-    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      if ( !done )  (std::move ( callback )) ( true );
     } );
   }
   auto  insertBody      ( const Buffer::Instance & fragment,
@@ -128,18 +132,18 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Body += fragment . toString ();  // TODO: inefficient? maybe use envoy's Buffer::* api instead
     if ( is_last )
       this -> commit ();
-    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      if ( !done )  (std::move ( callback )) ( true );
     } );
   }
   auto  insertTrailers  ( const Http::ResponseTrailerMap & trailers,
                           InsertCallback  callback ) -> void override
   {
     m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    m_Dispatcher . post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    m_Dispatcher . post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      if ( !done )  (std::move ( callback )) ( true );
     } );
   }
   // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
@@ -147,7 +151,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   // cancellation to avoid data races."
   auto  onDestroy       ( ) -> void override
   {
-    assert ( 0 );
+    m_Done = true;
   }
 };
 // --------------------------------------------------------------------------
