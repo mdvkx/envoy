@@ -160,14 +160,12 @@ namespace
 auto  RingBufferHttpCache::cacheInfo ( ) const -> CacheInfo
 {
   return  CacheInfo { . name_ = CACHE_NAME };
-  assert ( 0 );
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::makeLookupContext ( LookupRequest && request,
                                                Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<LookupContext>
 {
   return  std::make_unique<RingBufferHttpCacheLookupContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::move ( request ) );
-  assert ( 0 );
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::makeInsertContext ( std::unique_ptr<LookupContext> && lookup,
@@ -179,7 +177,6 @@ auto  RingBufferHttpCache::makeInsertContext ( std::unique_ptr<LookupContext> &&
     throw  std::invalid_argument { "mismatch in lookup context type" };
   lookup . release ();
   return  std::make_unique<RingBufferHttpCacheInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::unique_ptr<RingBufferHttpCacheLookupContext> { p } );
-  assert ( 0 );
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
@@ -192,19 +189,22 @@ auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::lookup ( const Key & key ) const -> std::optional<Value>
 {
-  return  std::nullopt;
-  assert ( 0 );
+  auto  i = m_Cache . find ( key . key () );
+  if ( i == m_Cache . end () )
+    return  std::nullopt;
+  const auto & [ _, v ] = *i;
+  return  Response { !v . m_Headers ? nullptr : Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *v . m_Headers ), !v . m_Trailers ? nullptr : Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *v . m_Trailers ), v . m_Metadata, v . m_Body };
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::contains ( const Key & key ) const -> bool
 {
-  assert ( 0 );
+  return  m_Cache . find ( key . key () ) != m_Cache . end ();
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::insert ( const Key & key,
                                     Value && value ) -> void
 {
-  assert ( 0 );
+  m_Cache . emplace ( key . key (), std::move ( value ) );
 }
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------

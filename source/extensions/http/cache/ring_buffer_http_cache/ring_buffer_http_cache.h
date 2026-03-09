@@ -1,6 +1,7 @@
 #pragma once
 
 #include "source/common/protobuf/protobuf.h"  // Protobuf::Message
+#include "source/common/protobuf/utility.h"  // MessageUtil
 #include "source/extensions/filters/http/cache/http_cache.h"  // HttpCache
 #include <memory>  // shared_ptr, unique_ptr, enable_shared_from_this
 #include <optional>  // optional
@@ -13,10 +14,10 @@ using namespace  std::literals;  // ""sv
 
 struct  Response
 {
-  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
-  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
-  ResponseMetadata  m_Metadata;
-  std::string  m_Body;
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
+  ResponseMetadata  m_Metadata {};
+  std::string  m_Body = "";
 };
 
 struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_this<RingBufferHttpCache>
@@ -26,6 +27,12 @@ struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_t
 
   static constexpr auto  CACHE_NAME = "envoy.extensions.http.cache.ring_buffer_http_cache"sv;
 
+  std::unordered_map
+  < Envoy::Extensions::HttpFilters::Cache::Key  // generated via protobuf, see key.pb.h
+   , Value
+   , MessageUtil
+   , MessageUtil
+   >  m_Cache;
 
   auto  cacheInfo ( ) const -> CacheInfo override;
   auto  makeLookupContext ( LookupRequest && request,
