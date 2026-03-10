@@ -55,7 +55,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
       throw  std::runtime_error { "lookup context outlived the cache that created it" };
     m_Response = cache -> lookup ( m_Request );
     auto  result = m_Response . has_value () ? m_Request . makeLookupResult ( std::move ( m_Response -> m_Headers ), std::move ( m_Response -> m_Metadata ), m_Response -> m_Body . length () ) : LookupResult {};
-    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = !m_Response . has_value () || ( m_Response -> m_Body . empty () && m_Response -> m_Trailers == nullptr ), done = std::cref ( m_Done ) ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = !m_Response . has_value () || ( m_Response -> m_Body . empty () && m_Response -> m_Trailers == nullptr ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( std::move ( result ), is_last );
     } );
@@ -66,7 +66,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
     assert ( m_Response . has_value () );
     assert ( range . end () <= m_Response -> m_Body . length () );
     auto  result = std::make_unique<Buffer::OwnedImpl> ( std::string_view { m_Response -> m_Body } . substr ( range . begin (), range . length () ) );
-    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr, done = std::cref ( m_Done )  ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ), is_last = range . end () == m_Response -> m_Body . length () && m_Response -> m_Trailers == nullptr ] ( ) mutable -> void
     {
       (std::move ( callback )) ( std::move ( result ), is_last );
     } );
@@ -76,7 +76,7 @@ struct  RingBufferHttpCacheLookupContext : public LookupContext
     assert ( m_Response . has_value () );
     assert ( m_Response -> m_Trailers != nullptr );
     auto  result = std::move ( m_Response -> m_Trailers );
-    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ), done = std::cref ( m_Done ) ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ), result = std::move ( result ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( std::move ( result ) );
     } );
@@ -140,7 +140,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Metadata = metadata;
     if ( is_last )
       this -> commit ();
-    this -> post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
     } );
@@ -152,7 +152,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
     m_Body += fragment . toString ();  // TODO: inefficient? maybe use envoy's Buffer::* api instead
     if ( is_last )
       this -> commit ();
-    this -> post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
     } );
@@ -161,7 +161,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
                           InsertCallback  callback ) -> void override
   {
     m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    this -> post ( [ callback = std::move ( callback ), done = std::cref ( m_Done ) ] ( ) mutable -> void
+    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
     {
       (std::move ( callback )) ( true );
     } );
@@ -213,6 +213,7 @@ auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::lookup ( const Key & key ) const -> std::optional<Value>
 {
+  auto  l = std::unique_lock { m_Mtx };
   auto  i = m_Cache . find ( key . key () );
   if ( i == m_Cache . end () )
     return  std::nullopt;
@@ -222,12 +223,14 @@ auto  RingBufferHttpCache::lookup ( const Key & key ) const -> std::optional<Val
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::contains ( const Key & key ) const -> bool
 {
+  auto  l = std::unique_lock { m_Mtx };
   return  m_Cache . find ( key . key () ) != m_Cache . end ();
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::insert ( const Key & key,
                                     Value && value ) -> void
 {
+  auto  l = std::unique_lock { m_Mtx };
   m_Cache . insert_or_assign ( key . key (), std::move ( value ) );
 }
 // --------------------------------------------------------------------------

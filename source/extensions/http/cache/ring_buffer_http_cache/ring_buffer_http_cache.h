@@ -38,6 +38,8 @@ struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_t
    , MessageUtil
    >  m_Cache;
 
+  mutable std::mutex  m_Mtx;
+
   auto  cacheInfo ( ) const -> CacheInfo override;
   auto  makeLookupContext ( LookupRequest && request,
                             Http::StreamFilterCallbacks & callbacks ) -> std::unique_ptr<LookupContext> override;
