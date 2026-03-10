@@ -31,14 +31,13 @@ struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_t
 
   static constexpr auto  CACHE_NAME = "envoy.extensions.http.cache.ring_buffer_http_cache"sv;
 
+  mutable std::mutex  m_Mtx;
   std::unordered_map
   < Envoy::Extensions::HttpFilters::Cache::Key  // generated via protobuf, see key.pb.h; fqn because Key is also a member type
    , Value
    , MessageUtil
    , MessageUtil
    >  m_Cache;
-
-  mutable std::mutex  m_Mtx;
 
   auto  cacheInfo ( ) const -> CacheInfo override;
   auto  makeLookupContext ( LookupRequest && request,

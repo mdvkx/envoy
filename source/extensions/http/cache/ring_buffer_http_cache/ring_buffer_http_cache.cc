@@ -129,7 +129,7 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   ResponseMetadata  m_Metadata {};
   std::string  m_Body = "";
 
-  bool  m_Done = false;
+  bool  m_Done = false;  // TODO:  a separate lifetime?
 
   auto  insertHeaders   ( const Http::ResponseHeaderMap & headers,
                           const ResponseMetadata & metadata,
@@ -138,11 +138,10 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
   {
     m_Headers  = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
     m_Metadata = metadata;
-    if ( is_last )
-      this -> commit ();
-    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    auto  success = !is_last || this -> commit ();
+    this -> post ( [ callback = std::move ( callback ), success ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      (std::move ( callback )) ( success );
     } );
   }
   auto  insertBody      ( const Buffer::Instance & fragment,
@@ -150,20 +149,20 @@ struct  RingBufferHttpCacheInsertContext : public InsertContext
                           bool  is_last ) -> void override
   {
     m_Body += fragment . toString ();  // TODO: inefficient? maybe use envoy's Buffer::* api instead
-    if ( is_last )
-      this -> commit ();
-    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    auto  success = !is_last || this -> commit ();
+    this -> post ( [ callback = std::move ( callback ), success ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      (std::move ( callback )) ( success );
     } );
   }
   auto  insertTrailers  ( const Http::ResponseTrailerMap & trailers,
                           InsertCallback  callback ) -> void override
   {
     m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    this -> post ( [ callback = std::move ( callback ) ] ( ) mutable -> void
+    auto  success = this -> commit ();
+    this -> post ( [ callback = std::move ( callback ), success ] ( ) mutable -> void
     {
-      (std::move ( callback )) ( true );
+      (std::move ( callback )) ( success );
     } );
   }
   // "any async activities are cleaned up before returning from `onDestroy()`. (...) `onDestroy()`
