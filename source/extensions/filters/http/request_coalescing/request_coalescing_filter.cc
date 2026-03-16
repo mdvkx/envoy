@@ -1,5 +1,5 @@
-//#include "source/extensions/filters/http/request_coalescing/request_coalescing.h"
-#include "./request_coalescing.h"
+//#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.h"
+#include "./request_coalescing_filter.h"
 #include <memory>  // shared ptr
 namespace  Envoy::Extensions::HttpFilters::Cache {
 // --------------------------------------------------------------------------
