@@ -1,7 +1,7 @@
 #pragma once
 
 #include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.pb.h"
-#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.validate.pb.h"
+#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.pb.validate.h"
 
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
