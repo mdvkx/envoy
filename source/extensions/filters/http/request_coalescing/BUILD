@@ -13,9 +13,7 @@ envoy_proto_library(
   name = "request_coalescing_filter_proto",
   srcs = [
     "request_coalescing_filter.proto"
-  ],
-  deps = [
-  ],
+  ]
 )
 
 envoy_cc_extension(

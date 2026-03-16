@@ -1,5 +1,5 @@
 syntax = "proto3";
-package  request_coalescing;
+package  envoy.extensions.filters.http.request_coalescing;
 message  Config
 {
 }
