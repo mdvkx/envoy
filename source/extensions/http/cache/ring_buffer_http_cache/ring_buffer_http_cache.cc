@@ -200,7 +200,7 @@ auto  RingBufferHttpCache::makeInsertContext ( std::unique_ptr<LookupContext> &&
   if ( p == nullptr )
     throw  std::invalid_argument { "mismatch in lookup context type" };
   lookup . release ();
-  return  std::make_unique<RingBufferHttpCacheInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::unique_ptr { p } );
+  return  std::make_unique<RingBufferHttpCacheInsertContext> ( callbacks . dispatcher (), this -> shared_from_this (), std::unique_ptr<RingBufferHttpCacheLookupContext> { p } );
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
