@@ -37,7 +37,7 @@ struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_t
    , Value
    , MessageUtil
    , MessageUtil
-   >  m_Cache;
+   >  m_Cache;  // TODO: ring buffer
 
   auto  cacheInfo ( ) const -> CacheInfo override;
   auto  makeLookupContext ( LookupRequest && request,
