@@ -25,4 +25,18 @@ struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::en
                         bool  is_last ) -> Http::FilterHeadersStatus override;
 
 };
+
+struct  RequestCoalescingFilterFactory : public Common::FactoryBase<envoy::extensions::filters::http::request_coalescing::Config>
+{
+  RequestCoalescingFilterFactory ( )
+    : FactoryBase { "envoy.filters.http.request_coalescing" }
+  {
+  }
+
+  auto createFilterFactoryFromProtoTyped ( const envoy::extensions::filters::http::request_coalescing::Config & config,
+                                           const std::string & stats_prefix,
+                                           Server::Configuration::FactoryContext & context ) -> Http::FilterFactoryCb override;
+};
+
+
 }
