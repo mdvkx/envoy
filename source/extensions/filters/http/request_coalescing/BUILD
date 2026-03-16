@@ -1,5 +1,8 @@
 
 load(
+  "//bazel:envoy_build_system.bzl",
+)
+load(
   "envoy_cc_extension",
   "envoy_cc_library",
   "envoy_extension_package",
