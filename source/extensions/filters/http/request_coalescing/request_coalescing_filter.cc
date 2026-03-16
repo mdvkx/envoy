@@ -25,9 +25,9 @@ auto  RequestCoalescingFilter::encodeHeaders ( Http::ResponseHeaderMap & headers
 }
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
-auto RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ( const envoy::extensions::filters::http::request_coalescing::Config & config,
-                                                                         const std::string & stats_prefix,
-                                                                         Server::Configuration::FactoryContext & context ) -> Http::FilterFactoryCb
+auto  RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ( const envoy::extensions::filters::http::request_coalescing::Config & config,
+                                                                          const std::string & ,
+                                                                          Server::Configuration::FactoryContext & context ) -> Http::FilterFactoryCb
 {
   return
   [
