@@ -10,7 +10,7 @@
 namespace  Envoy::Extensions::HttpFilters::Cache {
 struct  RequestCoalescingFilterConfig
 {
-  explicit  RequestCoalescingFilterConfig ( const envoy::extensions::filters::http::request_coalescing::Config &  )  { }
+  explicit  RequestCoalescingFilterConfig ( const envoy::extensions::filters::http::request_coalescing::Config & , Server::Configuration::CommonFactoryContext &  )  { }
 };
 struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
 {
