@@ -3,8 +3,7 @@
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 #include <memory>  // shared ptr
 
-//namespace  Envoy::Extensions::HttpFilters::Cache {
-
+namespace  Envoy::Extensions::HttpFilters::Cache {
 struct  RequestCoalescingFilterConfig
 {
   explicit  RequestCoalescingFilterConfig ( const request_coalescing::Config &  )  { }
@@ -25,3 +24,4 @@ struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::en
                         bool  is_last ) -> Http::FilterHeadersStatus override;
 
 };
+}

@@ -562,6 +562,13 @@ envoy.filters.http.rbac:
   type_urls:
   - envoy.extensions.filters.http.rbac.v3.RBAC
   - envoy.extensions.filters.http.rbac.v3.RBACPerRoute
+envoy.filters.http.request_coalescing:
+  categories:
+  - envoy.filters.http
+  security_posture: unknown
+  status: wip
+  type_urls:
+  - envoy.extensions.filters.http.request_coalescing.Config
 envoy.filters.http.router:
   categories:
   - envoy.filters.http

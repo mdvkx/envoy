@@ -62,6 +62,8 @@ public:
   const std::string IpTagging = "envoy.filters.http.ip_tagging";
   // Rate limit filter
   const std::string RateLimit = "envoy.filters.http.ratelimit";
+  // Request coalescing filter
+  const std::string RequestCoalescing = "envoy.filters.http.request_coalescing";
   // Router filter
   const std::string Router = "envoy.filters.http.router";
   // Health checking filter
