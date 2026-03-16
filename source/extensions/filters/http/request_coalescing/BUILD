@@ -18,6 +18,9 @@ envoy_proto_library(
 
 envoy_cc_extension(
   name = "config",
+  copts = [
+    "-Wno-error",
+  ],
   srcs = [
     "request_coalescing_filter.cc",
   ],
