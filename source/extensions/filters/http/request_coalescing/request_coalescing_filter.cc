@@ -1,7 +1,9 @@
 //#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.h"
 #include "./request_coalescing_filter.h"
+#include "source/common/common/logger.h"  // ENVOY_LOG
 #include <memory>  // shared ptr
-namespace  Envoy::Extensions::HttpFilters::Cache {
+namespace  Envoy::Extensions::HttpFilters::Cache
+{
 
 REGISTER_FACTORY ( RequestCoalescingFilterFactory, Server::Configuration::NamedHttpFilterConfigFactory );
 
@@ -15,12 +17,14 @@ REGISTER_FACTORY ( RequestCoalescingFilterFactory, Server::Configuration::NamedH
 auto  RequestCoalescingFilter::decodeHeaders ( Http::RequestHeaderMap & headers,
                                                bool  is_last ) -> Http::FilterHeadersStatus
 {
+  ENVOY_LOG_MISC ( debug, "decodeHeaders ()" );
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------
 auto  RequestCoalescingFilter::encodeHeaders ( Http::ResponseHeaderMap & headers,
                                                bool  is_last ) -> Http::FilterHeadersStatus
 {
+  ENVOY_LOG_MISC ( debug, "encodeHeaders ()!" );
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------

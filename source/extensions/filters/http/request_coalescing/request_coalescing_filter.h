@@ -7,11 +7,14 @@
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 #include <memory>  // shared ptr
 
-namespace  Envoy::Extensions::HttpFilters::Cache {
+namespace  Envoy::Extensions::HttpFilters::Cache
+{
+
 struct  RequestCoalescingFilterConfig
 {
   explicit  RequestCoalescingFilterConfig ( const envoy::extensions::filters::http::request_coalescing::Config & , Server::Configuration::CommonFactoryContext &  )  { }
 };
+
 struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
 {
   using  Config = RequestCoalescingFilterConfig;  // associated type
@@ -31,7 +34,7 @@ struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::en
 
 struct  RequestCoalescingFilterFactory : public Common::FactoryBase<envoy::extensions::filters::http::request_coalescing::Config>
 {
-  RequestCoalescingFilterFactory ( )
+    RequestCoalescingFilterFactory ( )
     : FactoryBase { "envoy.filters.http.request_coalescing" }
   {
   }
