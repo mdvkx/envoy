@@ -9,13 +9,19 @@ struct  RequestCoalescingFilterConfig
 {
   explicit  RequestCoalescingFilterConfig ( const request_coalescing::Config &  )  { }
 };
-struct  RequestCoalescingFilter : public Http::PassThroughFilter
+struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
 {
   using  Config = RequestCoalescingFilterConfig;  // associated type
   std::shared_ptr<Config>  m_Config;
   explicit  RequestCoalescingFilter ( std::shared_ptr<Config>  config );
-  auto  decodeHeaders ( Http::ResponseHeaderMap & headers,
+  // Http::StreamFilterBase
+  auto  onDestroy ( ) -> void override { }
+  auto  onStreamComplete ( ) -> void override { }
+  // Http::StreamDecoderFilter
+  auto  decodeHeaders ( Http::RequestHeaderMap & headers,
                         bool  is_last ) -> Http::FilterHeadersStatus override;
+  // Http::StreamEncoderFilter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers,
                         bool  is_last ) -> Http::FilterHeadersStatus override;
+
 };
