@@ -4,6 +4,7 @@
 #include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.pb.h"
 #include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.pb.validate.h"
 
+#include "envoy/common/time.h"
 #include "source/common/protobuf/utility.h"  // MessageUtil
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
@@ -25,8 +26,9 @@ struct  Response
 {
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  ResponseMetadata  m_Metadata {};
   std::string  m_Body = "";
+
+  Envoy::SystemTime  m_Stamp {};
 };
 
 struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
