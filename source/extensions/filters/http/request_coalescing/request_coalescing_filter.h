@@ -60,7 +60,6 @@ struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::en
                         bool  is_last ) -> Http::FilterHeadersStatus override;
 
 
-  static auto  is_cacheable ( Http::RequestHeaderMap const & headers ) const -> bool;
 
 };
 
