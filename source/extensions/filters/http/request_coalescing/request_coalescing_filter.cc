@@ -2,7 +2,7 @@
 #include "./request_coalescing_filter.h"
 #include "source/common/common/logger.h"  // ENVOY_LOG
 #include <memory>  // shared ptr
-namespace  Envoy::Extensions::HttpFilters::Cache
+namespace  Envoy::Extensions::HttpFilters::RequestCoalescing
 {
 
 REGISTER_FACTORY ( RequestCoalescingFilterFactory, Server::Configuration::NamedHttpFilterConfigFactory );
@@ -10,21 +10,21 @@ REGISTER_FACTORY ( RequestCoalescingFilterFactory, Server::Configuration::NamedH
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
       RequestCoalescingFilter::RequestCoalescingFilter ( std::shared_ptr<Config>  config )
-      : m_Config  { config }
+  : m_Config  { config }
 {
 }
 // --------------------------------------------------------------------------
 auto  RequestCoalescingFilter::decodeHeaders ( Http::RequestHeaderMap & headers,
                                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG_MISC ( debug, "decodeHeaders ()" );
+  ENVOY_LOG_MISC ( debug, "RequestCoalescingFilter::decodeHeaders (), headers = {}", headers );
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------
 auto  RequestCoalescingFilter::encodeHeaders ( Http::ResponseHeaderMap & headers,
                                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG_MISC ( debug, "encodeHeaders ()!" );
+  ENVOY_LOG_MISC ( debug, "RequestCoalescingFilter::encodeHeaders (), headers = {}", headers );
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------

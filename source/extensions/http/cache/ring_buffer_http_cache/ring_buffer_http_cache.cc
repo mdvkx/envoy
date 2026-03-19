@@ -214,24 +214,36 @@ auto  RingBufferHttpCache::updateHeaders ( const LookupContext & lookup,
 auto  RingBufferHttpCache::lookup ( const Key & key ) const -> std::optional<Value>
 {
   auto  l = std::unique_lock { m_Mtx };
+  auto  i = m_Cache . find ( key . key () );  // TODO:  key key is a bit weird
+
+  assert ( 0 );
+  /*
+  auto  l = std::unique_lock { m_Mtx };
   auto  i = m_Cache . find ( key . key () );
   if ( i == m_Cache . end () )
     return  std::nullopt;
   const auto & [ _, v ] = *i;
   return  Response { !v . m_Headers ? nullptr : Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *v . m_Headers ), !v . m_Trailers ? nullptr : Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *v . m_Trailers ), v . m_Metadata, v . m_Body };
+  */
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::contains ( const Key & key ) const -> bool
 {
+  assert ( 0 );
+  /*
   auto  l = std::unique_lock { m_Mtx };
   return  m_Cache . find ( key . key () ) != m_Cache . end ();
+  */
 }
 // --------------------------------------------------------------------------
 auto  RingBufferHttpCache::insert ( const Key & key,
                                     Value && value ) -> void
 {
+  assert ( 0 );
+  /*
   auto  l = std::unique_lock { m_Mtx };
   m_Cache . insert_or_assign ( key . key (), std::move ( value ) );
+  */
 }
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
