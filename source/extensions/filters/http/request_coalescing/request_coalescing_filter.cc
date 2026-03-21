@@ -1,11 +1,15 @@
 //#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.h"
 #include "./request_coalescing_filter.h"
+#include "envoy/registry/registry.h"  //
 #include "source/common/common/logger.h"  // ENVOY_LOG_xxx
 #include <memory>  // shared ptr
 namespace  Envoy::Extensions::HttpFilters::RequestCoalescing
 {
 
-REGISTER_FACTORY ( RequestCoalescingFilterFactory, Server::Configuration::NamedHttpFilterConfigFactory );
+namespace
+{
+  auto  g_SelfRegister = Registry::RegisterFactory<RequestCoalescingFilterFactory, Server::Configuration::NamedHttpFilterConfigFactory> {};
+}
 
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
@@ -18,6 +22,7 @@ auto  RequestCoalescingFilter::decodeHeaders ( Http::RequestHeaderMap & headers,
                                                bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG_MISC ( debug, "RequestCoalescingFilter::decodeHeaders (), headers = {}", headers );
+  // if cacheable
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------
@@ -33,11 +38,13 @@ auto  RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ( const 
                                                                           const std::string & ,
                                                                           Server::Configuration::FactoryContext & context ) -> Http::FilterFactoryCb
 {
+  ENVOY_LOG_MISC ( debug, "RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ()" );
   return
   [
     config = std::make_shared<RequestCoalescingFilterConfig> ( config, context . serverFactoryContext () )
   ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
   {
+    ENVOY_LOG_MISC ( debug, "RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ()::<anonymous lambda>" );
     callbacks . addStreamFilter ( std::make_shared<RequestCoalescingFilter> ( config ) );
   };
 }

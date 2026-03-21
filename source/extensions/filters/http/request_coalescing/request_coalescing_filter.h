@@ -28,7 +28,7 @@ struct  Response
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
   std::string  m_Body = "";
 
-  Envoy::SystemTime  m_Stamp {};
+  Envoy::SystemTime  m_Stamp {};  // "response metadata"
 };
 
 struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
@@ -37,7 +37,7 @@ struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::en
                                                   //
   std::shared_ptr<Config>  m_Config;
   std::unordered_map
-  < Envoy::Extensions::HttpFilters::Cache::Key  // 
+  < Envoy::Extensions::HttpFilters::Cache::Key  //
    , Response
    , MessageUtil
    , MessageUtil
