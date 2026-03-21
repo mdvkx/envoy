@@ -1,6 +1,6 @@
 //#include "source/extensions/filters/http/request_coalescing/request_coalescing_filter.h"
 #include "./request_coalescing_filter.h"
-#include "source/common/common/logger.h"  // ENVOY_LOG
+#include "source/common/common/logger.h"  // ENVOY_LOG_xxx
 #include <memory>  // shared ptr
 namespace  Envoy::Extensions::HttpFilters::RequestCoalescing
 {

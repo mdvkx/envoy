@@ -22,10 +22,12 @@ struct  Response
   std::string  m_Body = "";
 };
 
+/*
 struct  Entry
 {
   std::shared_future<Response>  m_Response;
 };
+*/
 
 struct  RingBufferHttpCache : public HttpCache, public std::enable_shared_from_this<RingBufferHttpCache>
 {
