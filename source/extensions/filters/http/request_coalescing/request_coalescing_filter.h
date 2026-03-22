@@ -31,19 +31,22 @@ struct  Response
   Envoy::SystemTime  m_Stamp {};  // "response metadata"
 };
 
+using  Cache = std::unordered_map
+  < Envoy::Extensions::HttpFilters::Cache::Key  //
+   , Response
+   , MessageUtil
+   , MessageUtil
+   > ;
+
 struct  RequestCoalescingFilter : public Http::PassThroughFilter, public std::enable_shared_from_this<RequestCoalescingFilter>
 {
   using  Config = RequestCoalescingFilterConfig;  // associated type
                                                   //
   std::shared_ptr<Config>  m_Config;
-  std::unordered_map
-  < Envoy::Extensions::HttpFilters::Cache::Key  //
-   , Response
-   , MessageUtil
-   , MessageUtil
-   >  m_Cache;
+  std::shared_ptr<Cache>  m_Cache;
 
-  explicit  RequestCoalescingFilter ( std::shared_ptr<Config>  config );
+  explicit  RequestCoalescingFilter ( std::shared_ptr<Config>  config,
+                                      std::shared_ptr<Cache>  cache );
     ~RequestCoalescingFilter ( ) override = default;
   // Http::StreamFilterBase
   auto  onDestroy ( ) -> void override

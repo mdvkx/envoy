@@ -13,8 +13,10 @@ namespace
 
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
-      RequestCoalescingFilter::RequestCoalescingFilter ( std::shared_ptr<Config>  config )
+      RequestCoalescingFilter::RequestCoalescingFilter ( std::shared_ptr<Config>  config,
+                                                         std::shared_ptr<Cache>  cache )
   : m_Config  { config }
+  , m_Cache  { cache }
 {
 }
 // --------------------------------------------------------------------------
@@ -23,6 +25,10 @@ auto  RequestCoalescingFilter::decodeHeaders ( Http::RequestHeaderMap & headers,
 {
   ENVOY_LOG_MISC ( debug, "RequestCoalescingFilter::decodeHeaders (), headers = {}", headers );
   // if cacheable
+  auto  scheme  = headers . getSchemeValue ();
+  auto  host    = headers . getHostValue ();
+  auto  path    = headers . getPathValue ();
+  auto  key     = absl::StrCat ( scheme, host, path );
   return  Http::FilterHeadersStatus::Continue;
 }
 // --------------------------------------------------------------------------
@@ -41,11 +47,12 @@ auto  RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ( const 
   ENVOY_LOG_MISC ( debug, "RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ()" );
   return
   [
-    config = std::make_shared<RequestCoalescingFilterConfig> ( config, context . serverFactoryContext () )
+    config = std::make_shared<RequestCoalescingFilterConfig> ( config, context . serverFactoryContext () ),
+    cache = std::make_shared<Cache> ()
   ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
   {
     ENVOY_LOG_MISC ( debug, "RequestCoalescingFilterFactory::createFilterFactoryFromProtoTyped ()::<anonymous lambda>" );
-    callbacks . addStreamFilter ( std::make_shared<RequestCoalescingFilter> ( config ) );
+    callbacks . addStreamFilter ( std::make_shared<RequestCoalescingFilter> ( config, cache ) );
   };
 }
 
