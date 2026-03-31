@@ -1,5 +1,6 @@
 #pragma once
 
+#include "source/common/common/logger.h"  // Loggable, Id
 #include "source/extensions/filters/http/cache_rqc/config.pb.h"
 #include "source/extensions/filters/http/cache_rqc/config.pb.validate.h"
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase<>
@@ -20,14 +21,16 @@ namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
 struct  Filter
-  : public /* Http::StreamFilter */ Http::PassThroughFilter, public std::enable_shared_from_this<Filter>
+  : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
   Filter ( )
   {
+    ENVOY_LOG ( debug, "Filter ()" );
   }
 
-  ~Filter ( )
+  ~Filter ( ) override
   {
+    ENVOY_LOG ( debug, "~Filter ()" );
   }
 
 };
