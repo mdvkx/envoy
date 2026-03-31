@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+// tl;dr:
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
@@ -16,6 +17,8 @@ struct  Filter;
 struct  FilterFactory;
 
 }
+
+// --------------------------------------------------------------------------------------------------------------------
 
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
