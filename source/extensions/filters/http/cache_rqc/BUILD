@@ -27,6 +27,7 @@ envoy_cc_library(
     deps = [
         ":config_proto_cc_proto",
         "//source/extensions/filters/http/common:factory_base_lib",
+        "//source/extensions/filters/http/common:pass_through_filter_lib",
     ]
 )
 
