@@ -10,6 +10,7 @@
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <utility>
@@ -76,6 +77,7 @@ struct  Response
 
 struct  Cache  // not thread-safe (yet)
 {
+  std::mutex  m_Mtx;
   std::unordered_map<std::string, std::shared_ptr<Response> >  m_Responses;
 };
 
@@ -148,11 +150,13 @@ struct  CacheFilter
 
   auto  insert ( const std::string & key, Response && response ) -> void
   {
+    auto  l = std::unique_lock { m_Cache -> m_Mtx };
     m_Cache -> m_Responses . insert_or_assign ( key, std::make_shared<Response> ( std::move ( response ) ) );
   }
 
   auto  lookup ( const std::string & key ) const -> std::optional<std::shared_ptr<Response> >
   {
+    auto  l = std::unique_lock { m_Cache -> m_Mtx };
     auto  i = m_Cache -> m_Responses . find ( key );
     if ( i == m_Cache -> m_Responses . end () )
       return  std::nullopt;
@@ -168,6 +172,7 @@ struct  Pending
 
 struct  Coalescer
 {
+  std::mutex  m_Mtx;
   std::unordered_map<std::string, std::shared_ptr<Pending> >  m_Pending;
 };
 
@@ -224,6 +229,7 @@ struct  RqcFilter
   auto  commit ( ) -> void
   {
     assert ( m_First );  // it's a programmer error if you try to commit but you're not the one who's responsible
+    auto  l = std::unique_lock { m_Coalescer -> m_Mtx };
     auto  i = m_Coalescer -> m_Pending . find ( m_Key );
     assert ( i != m_Coalescer -> m_Pending . end () );
     auto  x = i -> second;
@@ -238,6 +244,7 @@ struct  RqcFilter
 
   auto  try_insert ( const std::string & key, const std::function<std::shared_ptr<Pending> ()> & generator ) -> bool
   {
+    auto  l = std::unique_lock { m_Coalescer -> m_Mtx };
     auto  i = m_Coalescer -> m_Pending . find ( key );
     if ( i != m_Coalescer -> m_Pending . end () )
       return  false;
