@@ -202,6 +202,8 @@ struct  RqcFilter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeHeaders (): headers = {}, is_last = {}", headers, is_last );
+    if ( !m_First )
+      return  Http::FilterHeadersStatus::Continue;
     if ( is_last )
       this -> commit ();
     return  Http::FilterHeadersStatus::Continue;
@@ -210,6 +212,8 @@ struct  RqcFilter
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeTrailers (): trailers = {}", trailers );
+    if ( !m_First )
+      return  Http::FilterHeadersStatus::Continue;
     this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
   }
@@ -217,6 +221,8 @@ struct  RqcFilter
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
+    if ( !m_First )
+      return  Http::FilterHeadersStatus::Continue;
     if ( is_last )
       this -> commit ();
     return  Http::FilterDataStatus::Continue;
