@@ -31,7 +31,7 @@ struct  Response
 };
 
 
-struct  Cache
+struct  Cache  // not thread-safe (yet)
 {
   std::unordered_map<std::string, Response>  m_Responses;
 };
@@ -63,6 +63,7 @@ struct  Filter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "encodeHeaders (): {}, {}", headers, is_last );
+    this -> insert ( m_Key, Response {} );
     return  Http::FilterHeadersStatus::Continue;
   }
 
@@ -73,6 +74,11 @@ struct  Filter
   {
     using namespace  std::literals;
     return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
+  }
+
+  auto  insert ( const std::string & key, Response  response ) -> void
+  {
+    m_Cache -> m_Responses . insert_or_assign ( key, std::move ( response ) );
   }
 
   auto  lookup ( const std::string & key ) const -> std::optional<Response>
