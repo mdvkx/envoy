@@ -238,10 +238,10 @@ struct  RqcFilter
 
   auto  try_insert ( const std::string & key, const std::function<std::shared_ptr<Pending> ()> & generator ) -> bool
   {
-    auto  i = m_Coalescer -> m_Pending . find ( m_Key );
+    auto  i = m_Coalescer -> m_Pending . find ( key );
     if ( i != m_Coalescer -> m_Pending . end () )
       return  false;
-    m_Coalescer -> m_Pending . emplace_hint ( i, m_Key, generator () );
+    m_Coalescer -> m_Pending . emplace_hint ( i, key, generator () );
     return  true;
   }
 
