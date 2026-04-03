@@ -44,8 +44,8 @@ struct  Response
     Response ( Self && src ) = default;
 
     Response ( const Self & src )
-    : m_Headers { src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) },
-      m_Trailers { src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) },
+    : m_Headers { src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr },
+      m_Trailers { src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) : nullptr },
       m_Body { src . m_Body }
   {
   }
