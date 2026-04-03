@@ -25,15 +25,29 @@ struct  FilterFactory;
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
+
+struct  Response
+{
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+};
+
+
+struct  Cache
+{
+  std::unordered_map<std::string, Response>  m_Responses;
+};
+
+
 struct  Filter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
-  Filter ( )
+    Filter ( std::shared_ptr<Cache>  cache )
+    : m_Cache { cache }
   {
     ENVOY_LOG ( debug, "Filter ()" );
   }
 
-  ~Filter ( ) override
+    ~Filter ( ) override
   {
     ENVOY_LOG ( debug, "~Filter ()" );
   }
@@ -41,11 +55,37 @@ struct  Filter
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    auto  response = this -> lookup ( headers );
+    ENVOY_LOG ( debug, "decodeHeaders (): response = {}", response );
     return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    ENVOY_LOG ( debug, "encodeHeaders (): {}, {}", headers, is_last );
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  std::shared_ptr<Cache>  m_Cache;
+
+  auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
+  {
+    return  headers . getSchemeValue () + "://"s + headers . getHostValue () + headers . getPathValue ();
+  }
+
+  auto  lookup ( const Http::RequestHeaderMap & headers ) const -> std::optional<Response>
+  {
+    const auto  key = this -> derive_key ( headers );
+    auto  i = m_Cache -> m_Responses . find ( key );
+    if ( i == m_Cache -> m_Responses . end () )
+      return  std::nullopt;
+    else
+      return  i -> second;
   }
 
 };
 
+// this is actually more of a filter factory factory. anyways
 struct  FilterFactory
   : public Common::FactoryBase<envoy::extensions::filters::http::cache_rqc::Config>
 {
@@ -57,13 +97,14 @@ struct  FilterFactory
                                             const std::string & ,
                                             Server::Configuration::FactoryContext &  ) -> Envoy::Http::FilterFactoryCb override
   {
-    return  [ ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
+    auto  cache = std::make_shared<Cache> ();
+    return  [ cache ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
     {
-      callbacks . addStreamFilter ( std::make_shared<Filter> () );
+      callbacks . addStreamFilter ( std::make_shared<Filter> ( cache ) );
     };
   }
 
-  FilterFactory ( )
+    FilterFactory ( )
     : Base { "envoy.filters.http.cache_rqc" }
   {
   }
