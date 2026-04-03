@@ -190,7 +190,7 @@ struct  RqcFilter
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): {}, {}", headers, is_last );
     m_Key = this -> derive_key ( headers );
     m_First = this -> try_insert ( m_Key, [ ] ( ) -> std::shared_ptr<Pending> { return  std::make_shared<Pending> (); } );
-    ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): first? = ", m_First );
+    ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): first? = {}", m_First );
     return  Http::FilterHeadersStatus::Continue;
   }
 
