@@ -213,7 +213,7 @@ struct  RqcFilter
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeTrailers (): trailers = {}", trailers );
     if ( !m_First )
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterTrailersStatus::Continue;
     this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
   }
@@ -222,7 +222,7 @@ struct  RqcFilter
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
     if ( !m_First )
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterDataStatus::Continue;
     if ( is_last )
       this -> commit ();
     return  Http::FilterDataStatus::Continue;
