@@ -28,6 +28,9 @@ namespace  Envoy::Extensions::HttpFilters::CacheRqC
 
 struct  Response
 {
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
+  std::string  m_Body;
 };
 
 
@@ -63,12 +66,37 @@ struct  Filter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "encodeHeaders (): {}, {}", headers, is_last );
-    this -> insert ( m_Key, Response {} );
+    m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
+    if ( is_last )
+      this -> commit ();
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
+  {
+    ENVOY_LOG ( debug, "encodeTrailers (): {}", trailers );
+    m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
+    this -> commit ();
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
+  {
+    ENVOY_LOG ( debug, "encodeData (): {}, {}", data, is_last );
+    m_Response . m_Body += data . toString ();
+    if ( is_last )
+      this -> commit ();
     return  Http::FilterHeadersStatus::Continue;
   }
 
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
+  Response  m_Response;
+
+  auto  commit ( ) -> void
+  {
+    this -> insert ( m_Key, std::move ( m_Response ) );
+  }
 
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
   {
@@ -76,7 +104,7 @@ struct  Filter
     return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
   }
 
-  auto  insert ( const std::string & key, Response  response ) -> void
+  auto  insert ( const std::string & key, Response && response ) -> void
   {
     m_Cache -> m_Responses . insert_or_assign ( key, std::move ( response ) );
   }
