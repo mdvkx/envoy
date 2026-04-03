@@ -25,6 +25,14 @@ struct  FilterFactory;
 
 // --------------------------------------------------------------------------------------------------------------------
 
+
+template <typename  T_>
+[[nodiscard]]
+constexpr auto  copy ( T_ t ) -> T_
+{
+  return  t;
+}
+
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
@@ -112,7 +120,7 @@ struct  Filter
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
-    ENVOY_LOG ( debug, "encodeData (): {}, {}", data, is_last );
+    ENVOY_LOG ( debug, "encodeData (): {}, {}", data . toString (), is_last );
     m_Response . m_Body += data . toString ();
     if ( is_last )
       this -> commit ();
