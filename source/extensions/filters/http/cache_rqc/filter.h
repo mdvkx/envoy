@@ -3,13 +3,16 @@
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 
 #include "source/common/common/logger.h"  // Loggable, Id
+#include "source/common/http/header_map_impl.h"  // createHeaderMap
 #include "source/extensions/filters/http/cache_rqc/config.pb.h"
 #include "source/extensions/filters/http/cache_rqc/config.pb.validate.h"
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase<>
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
 // tl;dr:
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
