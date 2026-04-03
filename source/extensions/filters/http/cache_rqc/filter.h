@@ -28,7 +28,7 @@ struct  FilterFactory;
 
 template <typename  T_>
 [[nodiscard]]
-constexpr auto  copy ( T_ t ) -> T_
+constexpr auto  copy ( T_ t ) -> T_  // thought: accept T_ && to allow user-defined overloads
 {
   return  t;
 }
@@ -80,23 +80,24 @@ struct  Cache  // not thread-safe (yet)
 };
 
 
-struct  Filter
-  : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
+struct  CacheFilter
+  : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<CacheFilter>
 {
-    Filter ( std::shared_ptr<Cache>  cache )
+    CacheFilter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
-    ENVOY_LOG ( debug, "Filter ()" );
+    ENVOY_LOG ( debug, "CacheFilter ()" );
   }
 
-    ~Filter ( ) override
+    ~CacheFilter ( ) override
   {
-    ENVOY_LOG ( debug, "~Filter ()" );
+    ENVOY_LOG ( debug, "~CacheFilter ()" );
   }
 
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    // todo: is the request even cacheable?
     m_Key = this -> derive_key ( headers );
     auto  response = this -> lookup ( m_Key );
     ENVOY_LOG ( debug, "decodeHeaders (): response? = {}", response . has_value () );
@@ -135,6 +136,7 @@ struct  Filter
 
   auto  commit ( ) -> void
   {
+    // todo: is the response cacheable?
     this -> insert ( m_Key, std::move ( m_Response ) );
   }
 
@@ -160,6 +162,45 @@ struct  Filter
 
 };
 
+struct  RqcFilter
+  : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<RqcFilter>
+{
+    RqcFilter ( )
+  {
+    ENVOY_LOG ( debug, "RqcFilter ()" );
+  }
+
+    ~RqcFilter ( ) override
+  {
+    ENVOY_LOG ( debug, "~RqcFilter ()" );
+  }
+
+  auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    ENVOY_LOG ( debug, "encodeHeaders (): heeaders = {}, is_last = {}", headers, is_last );
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
+  {
+    ENVOY_LOG ( debug, "encodeTrailers (): trailers = {}", trailers );
+    return  Http::FilterTrailersStatus::Continue;
+  }
+
+  auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
+  {
+    ENVOY_LOG ( debug, "encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
+    return  Http::FilterDataStatus::Continue;
+  }
+
+};
+
 // this is actually more of a filter factory factory. anyways
 struct  FilterFactory
   : public Common::FactoryBase<envoy::extensions::filters::http::cache_rqc::Config>
@@ -175,7 +216,8 @@ struct  FilterFactory
     auto  cache = std::make_shared<Cache> ();
     return  [ cache ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
     {
-      callbacks . addStreamFilter ( std::make_shared<Filter> ( cache ) );
+      callbacks . addStreamFilter ( std::make_shared<CacheFilter> ( cache ) );
+      callbacks . addStreamFilter ( std::make_shared<RqcFilter> ( ) );
     };
   }
 
