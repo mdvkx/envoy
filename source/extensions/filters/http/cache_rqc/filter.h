@@ -54,7 +54,8 @@ struct  Filter
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
-    auto  response = this -> lookup ( headers );
+    m_Key = this -> derive_key ( headers );
+    auto  response = this -> lookup ( m_Key );
     ENVOY_LOG ( debug, "decodeHeaders (): response? = {}", response . has_value () );
     return  Http::FilterHeadersStatus::Continue;
   }
@@ -66,16 +67,16 @@ struct  Filter
   }
 
   std::shared_ptr<Cache>  m_Cache;
+  std::string  m_Key;
 
-  auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
   {
     using namespace  std::literals;
     return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
   }
 
-  auto  lookup ( const Http::RequestHeaderMap & headers ) const -> std::optional<Response>
+  auto  lookup ( const std::string & key ) const -> std::optional<Response>
   {
-    const auto  key = this -> derive_key ( headers );
     auto  i = m_Cache -> m_Responses . find ( key );
     if ( i == m_Cache -> m_Responses . end () )
       return  std::nullopt;
