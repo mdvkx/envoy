@@ -71,7 +71,7 @@ struct  Filter
   auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
   {
     using namespace  std::literals;
-    return  headers . getSchemeValue () + "://"s + headers . getHostValue () + headers . getPathValue ();
+    return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
   }
 
   auto  lookup ( const Http::RequestHeaderMap & headers ) const -> std::optional<Response>
