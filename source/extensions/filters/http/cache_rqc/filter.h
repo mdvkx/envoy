@@ -80,7 +80,7 @@ struct  Filter
     ENVOY_LOG ( debug, "encodeTrailers (): {}", trailers );
     m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
     this -> commit ();
-    return  Http::FilterHeadersStatus::Continue;
+    return  Http::FilterTrailersStatus::Continue;
   }
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
@@ -89,7 +89,7 @@ struct  Filter
     m_Response . m_Body += data . toString ();
     if ( is_last )
       this -> commit ();
-    return  Http::FilterHeadersStatus::Continue;
+    return  Http::FilterDataStatus::Continue;
   }
 
   std::shared_ptr<Cache>  m_Cache;
