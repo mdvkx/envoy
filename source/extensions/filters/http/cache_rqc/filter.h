@@ -196,6 +196,10 @@ struct  RqcFilter
     m_Key = this -> derive_key ( headers );
     m_First = this -> try_insert ( m_Key, [ ] ( ) -> std::shared_ptr<Pending> { return  std::make_shared<Pending> (); } );
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): first? = {}", m_First );
+    // todo: subscribe
+    if ( !m_First )
+      return  Http::FilterHeadersStatus::Continue;
+    m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
     return  Http::FilterHeadersStatus::Continue;
   }
 
@@ -214,6 +218,7 @@ struct  RqcFilter
     ENVOY_LOG ( debug, "RqcFilter::encodeTrailers (): trailers = {}", trailers );
     if ( !m_First )
       return  Http::FilterTrailersStatus::Continue;
+    m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
     this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
   }
@@ -223,6 +228,7 @@ struct  RqcFilter
     ENVOY_LOG ( debug, "RqcFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
     if ( !m_First )
       return  Http::FilterDataStatus::Continue;
+    m_Response . m_Body += data . toString ();
     if ( is_last )
       this -> commit ();
     return  Http::FilterDataStatus::Continue;
@@ -231,6 +237,7 @@ struct  RqcFilter
   std::shared_ptr<Coalescer>  m_Coalescer;
   std::string  m_Key;
   bool  m_First;
+  Response  m_Response;
 
   auto  commit ( ) -> void
   {
