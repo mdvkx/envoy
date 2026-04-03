@@ -31,9 +31,36 @@ namespace  Envoy::Extensions::HttpFilters::CacheRqC
 
 struct  Response
 {
+  using  Self = Response;
+
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
   std::string  m_Body;
+
+    Response ( ) = default;
+
+    ~Response ( ) = default;
+
+    Response ( Self && src ) = default;
+
+    Response ( const Self & src )
+    : m_Headers { src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) },
+      m_Trailers { src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) },
+      m_Body { src . m_Body }
+  {
+  }
+
+  auto  operator = ( Self && src ) -> Self & = default;
+
+  auto  operator = ( const Self & src ) -> Self &
+  {
+    if ( this == std::addressof ( src ) )
+      return  *this;
+    m_Headers = src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr;
+    m_Trailers = src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) : nullptr;
+    m_Body = src . m_Body;
+    return  *this;
+  }
 };
 
 
