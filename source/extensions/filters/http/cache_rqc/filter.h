@@ -69,7 +69,7 @@ struct  Filter
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
 
-  static auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
   {
     using namespace  std::literals;
     return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
