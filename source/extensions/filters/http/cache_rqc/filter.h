@@ -28,7 +28,6 @@ namespace  Envoy::Extensions::HttpFilters::CacheRqC
 
 struct  Response
 {
-  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
 };
 
 
