@@ -162,10 +162,20 @@ struct  CacheFilter
 
 };
 
+struct  Pending
+{
+};
+
+struct  Coalescer
+{
+  std::unordered_map<std::string, std::shared_ptr<Pending> >  m_Pending;
+};
+
 struct  RqcFilter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<RqcFilter>
 {
-    RqcFilter ( )
+    RqcFilter ( std::shared_ptr<Coalescer>  coalescer )
+    : m_Coalescer { coalescer }
   {
     ENVOY_LOG ( debug, "RqcFilter ()" );
   }
@@ -178,25 +188,61 @@ struct  RqcFilter
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): {}, {}", headers, is_last );
+    m_Key = this -> derive_key ( headers );
+    m_First = this -> try_insert ( m_Key, [ ] ( ) -> std::shared_ptr<Pending> { return  std::make_shared<Pending> (); } );
+    ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): first? = ", m_First );
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeHeaders (): headers = {}, is_last = {}", headers, is_last );
+    if ( is_last )
+      this -> commit ();
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeTrailers (): trailers = {}", trailers );
+    this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
   }
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
+    if ( is_last )
+      this -> commit ();
     return  Http::FilterDataStatus::Continue;
+  }
+
+  std::shared_ptr<Coalescer>  m_Coalescer;
+  std::string  m_Key;
+  bool  m_First;
+
+  auto  commit ( ) -> void
+  {
+    assert ( m_First );  // it's a programmer error if you try to commit but you're not the one who's responsible
+    auto  i = m_Coalescer -> m_Pending . find ( m_Key );
+    assert ( i != m_Coalescer -> m_Pending . end () );
+    auto  x = i -> second;
+    m_Coalescer -> m_Pending . erase ( i );
+  }
+
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
+  {
+    using namespace  std::literals;
+    return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
+  }
+
+  auto  try_insert ( const std::string & key, const std::function<std::shared_ptr<Pending> ()> & generator ) -> bool
+  {
+    auto  i = m_Coalescer -> m_Pending . find ( m_Key );
+    if ( i != m_Coalescer -> m_Pending . end () )
+      return  false;
+    m_Coalescer -> m_Pending . emplace_hint ( i, m_Key, generator () );
+    return  true;
   }
 
 };
@@ -214,10 +260,11 @@ struct  FilterFactory
                                             Server::Configuration::FactoryContext &  ) -> Envoy::Http::FilterFactoryCb override
   {
     auto  cache = std::make_shared<Cache> ();
-    return  [ cache ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
+    auto  coalescer = std::make_shared<Coalescer> ();
+    return  [ cache, coalescer ] ( Http::FilterChainFactoryCallbacks & callbacks ) -> void
     {
       callbacks . addStreamFilter ( std::make_shared<CacheFilter> ( cache ) );
-      callbacks . addStreamFilter ( std::make_shared<RqcFilter> ( ) );
+      callbacks . addStreamFilter ( std::make_shared<RqcFilter> ( coalescer ) );
     };
   }
 
