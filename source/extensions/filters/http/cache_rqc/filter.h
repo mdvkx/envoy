@@ -56,7 +56,7 @@ struct  Filter
   {
     ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
     auto  response = this -> lookup ( headers );
-    ENVOY_LOG ( debug, "decodeHeaders (): response = {}", response );
+    ENVOY_LOG ( debug, "decodeHeaders (): response? = {}", response . has_value () );
     return  Http::FilterHeadersStatus::Continue;
   }
 
