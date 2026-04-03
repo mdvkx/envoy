@@ -45,6 +45,7 @@ struct  Response
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
   std::string  m_Body;
 
+  /*
     Response ( ) = default;
 
     ~Response ( ) = default;
@@ -69,12 +70,13 @@ struct  Response
     m_Body = src . m_Body;
     return  *this;
   }
+    */
 };
 
 
 struct  Cache  // not thread-safe (yet)
 {
-  std::unordered_map<std::string, Response>  m_Responses;
+  std::unordered_map<std::string, std::shared_ptr<Response> >  m_Responses;
 };
 
 
@@ -103,7 +105,7 @@ struct  Filter
 
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    ENVOY_LOG ( debug, "encodeHeaders (): {}, {}", headers, is_last );
+    ENVOY_LOG ( debug, "encodeHeaders (): heeaders = {}, is_last = {}", headers, is_last );
     m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
     if ( is_last )
       this -> commit ();
@@ -112,7 +114,7 @@ struct  Filter
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
-    ENVOY_LOG ( debug, "encodeTrailers (): {}", trailers );
+    ENVOY_LOG ( debug, "encodeTrailers (): trailers = {}", trailers );
     m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
     this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
@@ -120,7 +122,7 @@ struct  Filter
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
-    ENVOY_LOG ( debug, "encodeData (): {}, {}", data . toString (), is_last );
+    ENVOY_LOG ( debug, "encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
     m_Response . m_Body += data . toString ();
     if ( is_last )
       this -> commit ();
@@ -144,10 +146,10 @@ struct  Filter
 
   auto  insert ( const std::string & key, Response && response ) -> void
   {
-    m_Cache -> m_Responses . insert_or_assign ( key, std::move ( response ) );
+    m_Cache -> m_Responses . insert_or_assign ( key, std::make_shared<Response> ( std::move ( response ) ) );
   }
 
-  auto  lookup ( const std::string & key ) const -> std::optional<Response>
+  auto  lookup ( const std::string & key ) const -> std::optional<std::shared_ptr<Response> >
   {
     auto  i = m_Cache -> m_Responses . find ( key );
     if ( i == m_Cache -> m_Responses . end () )
