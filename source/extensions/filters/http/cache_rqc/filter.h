@@ -96,17 +96,17 @@ struct  CacheFilter
 
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): {}, {}", headers, is_last );
     // todo: is the request even cacheable?
     m_Key = this -> derive_key ( headers );
     auto  response = this -> lookup ( m_Key );
-    ENVOY_LOG ( debug, "decodeHeaders (): response? = {}", response . has_value () );
+    ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): response? = {}", response . has_value () );
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    ENVOY_LOG ( debug, "encodeHeaders (): heeaders = {}, is_last = {}", headers, is_last );
+    ENVOY_LOG ( debug, "CacheFilter::encodeHeaders (): headers = {}, is_last = {}", headers, is_last );
     m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
     if ( is_last )
       this -> commit ();
@@ -115,7 +115,7 @@ struct  CacheFilter
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
-    ENVOY_LOG ( debug, "encodeTrailers (): trailers = {}", trailers );
+    ENVOY_LOG ( debug, "CacheFilter::encodeTrailers (): trailers = {}", trailers );
     m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
     this -> commit ();
     return  Http::FilterTrailersStatus::Continue;
@@ -123,7 +123,7 @@ struct  CacheFilter
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
-    ENVOY_LOG ( debug, "encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
+    ENVOY_LOG ( debug, "CacheFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
     m_Response . m_Body += data . toString ();
     if ( is_last )
       this -> commit ();
@@ -177,25 +177,25 @@ struct  RqcFilter
 
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): {}, {}", headers, is_last );
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    ENVOY_LOG ( debug, "encodeHeaders (): heeaders = {}, is_last = {}", headers, is_last );
+    ENVOY_LOG ( debug, "RqcFilter::encodeHeaders (): headers = {}, is_last = {}", headers, is_last );
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
-    ENVOY_LOG ( debug, "encodeTrailers (): trailers = {}", trailers );
+    ENVOY_LOG ( debug, "RqcFilter::encodeTrailers (): trailers = {}", trailers );
     return  Http::FilterTrailersStatus::Continue;
   }
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
   {
-    ENVOY_LOG ( debug, "encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
+    ENVOY_LOG ( debug, "RqcFilter::encodeData (): body = \"{}\", is_last = {}", data . toString (), is_last );
     return  Http::FilterDataStatus::Continue;
   }
 
