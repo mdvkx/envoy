@@ -1,5 +1,7 @@
 #pragma once
 
+#include "envoy/http/header_map.h"  // RequestHeaderMap
+
 #include "source/common/common/logger.h"  // Loggable, Id
 #include "source/extensions/filters/http/cache_rqc/config.pb.h"
 #include "source/extensions/filters/http/cache_rqc/config.pb.validate.h"
@@ -34,6 +36,12 @@ struct  Filter
   ~Filter ( ) override
   {
     ENVOY_LOG ( debug, "~Filter ()" );
+  }
+
+  auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    ENVOY_LOG ( debug, "decodeHeaders (): {}, {}", headers, is_last );
+    return  Http::FilterHeadersStatus::Continue;
   }
 
 };
