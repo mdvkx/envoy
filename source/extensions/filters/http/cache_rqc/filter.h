@@ -29,9 +29,9 @@ struct  FilterFactory;
 
 template <typename  T_>
 [[nodiscard]]
-constexpr auto  copy ( T_ t ) -> T_  // thought: accept T_ && to allow user-defined overloads
+constexpr auto  copy ( T_ t ) -> T_
 {
-  return  t;
+  return  T_ { t };
 }
 
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
