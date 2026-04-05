@@ -282,12 +282,29 @@ struct  CacheFilter
 
 struct  Pending
 {
+  std::vector<std::function<void (Response)> >  m_Subscribers;
+  auto  publish ( const Response & response )
+  {
+    for ( const auto & subscriber : m_Subscribers )
+    {
+      auto  copy = Response {
+        response . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *response . m_Headers ) : nullptr,
+        response . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *response . m_Trailers ) : nullptr,
+        response . m_Body
+      };
+      subscriber ( std::move ( copy ) );
+    }
+  }
+  auto  subscribe ( std::function<void (Response)>  callback ) -> void
+  {
+    m_Subscribers . emplace_back ( std::move ( callback ) );
+  }
 };
 
 struct  Coalescer
 {
   std::mutex  m_Mtx;
-  std::unordered_map<std::string, std::shared_ptr<Pending> >  m_Pending;
+  std::unordered_map<std::string, Pending>  m_Pending;
 };
 
 struct  RqcFilter
@@ -308,12 +325,39 @@ struct  RqcFilter
   {
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): {}, {}", headers, is_last );
     m_Key = this -> derive_key ( headers );
-    //m_First = this -> try_insert ( m_Key, [ ] ( ) -> std::shared_ptr<Pending> { return  std::make_shared<Pending> (); } );
-    const auto  first = this -> try_insert ( m_Key, [ ] ( ) -> std::shared_ptr<Pending> { return  std::make_shared<Pending> (); } );
+    const auto  first = this -> try_insert (
+      m_Key,
+      [ this ] ( ) -> Pending
+      {
+        m_State = State::Owner;
+        return  Pending {};
+      },
+      [ this ] ( Pending & pending ) -> void
+      {
+        m_State = State::Subscriber;
+        pending . subscribe ( [ this ] ( Response  response ) -> void
+        {
+          ENVOY_LOG ( debug, "RqcFilter::decodeHeaders ()::<anonymous> (): subscriber received response" );
+          // toss it onto the dispatcher because otherwise i'm gonna get shit for running on an alien thread
+          this -> post ( [ this, response = std::move ( response ) ] ( ) mutable -> void
+          {
+            // i have to manually disect the response and send it off piece by piece. it's annoying, but alas ...
+            this -> decoder_callbacks_ -> encodeHeaders ( std::move ( response . m_Headers ), ! ( response . m_Trailers || !response . m_Body . empty () ), "<details>" );
+            if ( !response . m_Body . empty () )
+            {
+              auto  data = Buffer::OwnedImpl { response . m_Body };
+              this -> decoder_callbacks_ -> encodeData ( data, ! response . m_Trailers );
+            }
+            if ( response . m_Trailers )
+              this -> decoder_callbacks_ -> encodeTrailers ( std::move ( response . m_Trailers ) );
+          } );
+        } );
+      } );
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): first? = {}", first );
-    // todo: subscribe
-    m_State =  first ? State::Owner : State::Subscriber;
-    return  Http::FilterHeadersStatus::Continue;
+    if ( !first )
+      return  Http::FilterHeadersStatus::StopIteration;
+    else
+      return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
@@ -415,6 +459,15 @@ struct  RqcFilter
   enum struct  State { Unknown, Owner, Subscriber, };
   State  m_State = State::Unknown;
 
+  template
+  <  typename  F_
+   >
+  auto  post ( F_ && fn ) -> void
+  {
+    // todo: test if the filter is still alive?
+    this -> decoder_callbacks_ -> dispatcher () . post ( std::forward<F_> ( fn ) );
+  }
+
   auto  commit ( ) -> void
   {
     //assert ( m_First );  // it's a programmer error if you try to commit but you're not the one who's responsible
@@ -422,8 +475,11 @@ struct  RqcFilter
     auto  l = std::unique_lock { m_Coalescer -> m_Mtx };
     auto  i = m_Coalescer -> m_Pending . find ( m_Key );
     assert ( i != m_Coalescer -> m_Pending . end () );
-    auto  x = i -> second;
+    auto  x = std::move ( i -> second );
     m_Coalescer -> m_Pending . erase ( i );
+    l . unlock ();
+    x . publish ( m_Response );
+    m_State = State::Subscriber;  // switch to subscriber (aka observer) mode
   }
 
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
@@ -432,14 +488,22 @@ struct  RqcFilter
     return  absl::StrCat ( headers . getSchemeValue (), "://"s, headers . getHostValue (), headers . getPathValue () );
   }
 
-  auto  try_insert ( const std::string & key, const std::function<std::shared_ptr<Pending> ()> & generator ) -> bool
+  auto  try_insert ( const std::string & key,
+                     const std::function<Pending ()> & create,
+                     const std::function<void (Pending &)> & modify ) -> bool
   {
     auto  l = std::unique_lock { m_Coalescer -> m_Mtx };
     auto  i = m_Coalescer -> m_Pending . find ( key );
     if ( i != m_Coalescer -> m_Pending . end () )
+    {
+      modify ( i -> second );
       return  false;
-    m_Coalescer -> m_Pending . emplace_hint ( i, key, generator () );
-    return  true;
+    }
+    else
+    {
+      m_Coalescer -> m_Pending . emplace_hint ( i, key, create () );
+      return  true;
+    }
   }
 
 };
