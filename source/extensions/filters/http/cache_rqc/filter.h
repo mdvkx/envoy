@@ -21,8 +21,8 @@ namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
 struct  Response;
-struct  Pending;
 struct  Cache;
+struct  Pending;
 struct  Coalescer;
 
 struct  CacheFilter;
@@ -44,6 +44,46 @@ constexpr auto  copy ( T_ t ) -> T_
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
 {
 
+template <typename  T_, std::size_t  N_>
+struct  Ring
+{
+  static_assert ( std::has_single_bit ( N_ ), "ring capacity must be a non-zero power of two" );
+
+  std::size_t               m_Wr = 0;
+  std::size_t               m_Size = 0;
+  T_                      * m_Data = reinterpret_cast<T_ *> ( m_Mem );
+  alignas ( T_ ) std::byte  m_Mem [ sizeof ( T_ ) * N_ ];
+
+  constexpr  Ring ( ) = default;
+  constexpr  ~Ring ( )
+  {
+    this -> clear ();
+  }
+  constexpr auto  size ( ) const -> std::size_t
+  {
+    return  m_Size;
+  }
+  constexpr auto  find ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
+  {
+    return  std::nullopt;
+  }
+  constexpr auto  clear ( ) -> void
+  {
+    for ( std::size_t i = 0; i < m_Size; i ++ )
+      std::destroy_at ( std::addressof ( m_Data [ i ] ) );
+    m_Size = 0;
+    m_Wr  = 0;
+  }
+  template <typename ...  Args_>
+  constexpr auto  push ( ) -> void
+  {
+    static_assert ( std::constructible_from<T_, Args_ ...> );
+    std::construct_at ( std::addressof ( m_Data [ m_Wr ] ), std::forward<Args_> ( args ) ... );
+    m_Wr ++;
+    // wrap around
+    m_Wr &= N_ - 1;
+  }
+};
 
 struct  Response
 {
@@ -53,7 +93,17 @@ struct  Response
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
   std::string  m_Body = "";
 
-  //Envoy::SystemTime  m_Stamp {};   // "response metadata", note: imo, this should really be MonotonicTime
+  Envoy::SystemTime  m_Stamp {};   // "response metadata", note: imo, this should really be MonotonicTime
+
+  auto  clone ( ) const -> Response
+  {
+    return  Response
+      { m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *m_Headers ) : nullptr
+      , m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *m_Trailers ) : nullptr
+      , m_Body
+      }
+      ;
+  }
 
   /*
     Response ( ) = default;
@@ -90,42 +140,87 @@ struct  Cache
   std::unordered_map<std::string, std::shared_ptr<Response> >  m_Responses;
 };
 
+struct  Pending  // maybe extrapolate as: Channel<Pending>?  kis,s
+{
+  std::vector<std::function<void (Response)> >  m_Subscribers;
+  auto  publish ( const Response & response )
+  {
+    for ( const auto & subscriber : m_Subscribers )
+    {
+      subscriber ( response . clone () );
+    }
+  }
+  auto  subscribe ( std::function<void (Response)>  callback ) -> void
+  {
+    m_Subscribers . emplace_back ( std::move ( callback ) );
+  }
+};
+
+struct  Coalescer
+{
+  std::mutex  m_Mtx;
+  std::unordered_map<std::string, Pending>  m_Pending;
+};
 
 struct  CacheFilter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<CacheFilter>
 {
-    CacheFilter ( std::shared_ptr<Cache>  cache )
+        CacheFilter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
     ENVOY_LOG ( debug, "CacheFilter ()" );
   }
 
-    ~CacheFilter ( ) override
+        ~CacheFilter ( ) override
   {
     ENVOY_LOG ( debug, "~CacheFilter ()" );
+  }
+
+  auto  onDestroy ( ) -> void override
+  {
+    ENVOY_LOG ( debug, "CacheFilter::onDestroy ()" );
+  }
+
+  auto  onStreamComplete ( ) -> void override
+  {
+    ENVOY_LOG ( debug, "CacheFilter::onStreamComplete ()" );
   }
 
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     using namespace  std::literals;
     ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): {}, {}", headers, is_last );
-    // todo: is the request even cacheable?
-    m_Key = this -> derive_key ( headers );
-    auto  response = this -> lookup ( m_Key );
-    // todo: https://www.rfc-editor.org/rfc/rfc9211.html
-    ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): response? = {}", response . has_value () );
+
+    // is the request even cacheable?
     if (
+      headers . Path () == nullptr
+      || headers . Host () == nullptr
+      || headers . getMethodValue () != "GET"sv  // uppercase important
+      || !is_last
+    )
+    {  // request is not cacheable -> response isn't either
+      m_State = State::Ignore;  // n/a
+      return  Http::FilterHeadersStatus::Continue;
+    }
+
+    m_Key = this -> derive_key ( headers );
+
+    // todo: Cache-Status HTTP response header field, https://www.rfc-editor.org/rfc/rfc9211.html
+    if (
+      auto  response = this -> lookup ( m_Key );
       !response
-      // todo: response expired?
+      || std::chrono::duration_cast<std::chrono::seconds> ( std::chrono::system_clock::now () - (*response) -> m_Stamp ) > 60s  // pretend the response expires after 60s
     )
     {
-      m_State = State::Miss;
+      ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): cache miss" );
+      m_State = State::Miss; // todo: State::Stale if expired
       return  Http::FilterHeadersStatus::Continue;
     }
     else
     {
+      ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): cache hit" );
       m_State = State::Hit;
-      this -> reply ( *response );
+      this -> send_reply ( *response );
       return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
     }
   }
@@ -138,30 +233,26 @@ struct  CacheFilter
       case  State::Unknown:
         assert ( 0 );  // ???
         break;
+      case  State::Ignore:
+        return  Http::FilterHeadersStatus::Continue;  // not cacheable
+        break;
       case  State::Hit:  // served, but still observed via reverse filter chain
         return  Http::FilterHeadersStatus::Continue;
         break;
       case  State::Miss:
         m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
+        m_Response . m_Stamp  = std::chrono::system_clock::now ();  // todo: use envoy's time api (it's just a wrapper, but it's cleaner)
         if ( is_last )
           this -> commit ();
         return  Http::FilterHeadersStatus::Continue;
         break;
       case  State::Stale:
-        assert ( 0 );  // not yet implemented
+        assert ( 0 );  // not yet implemented, handled in State::Miss until then
         break;
       default:
         assert ( 0 );
         break;
     }
-    /*
-    if ( m_State == State::Unknown || m_State == State::Hit )
-      return  Http::FilterHeadersStatus::Continue;
-    m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
-    if ( is_last )
-      this -> commit ();
-    return  Http::FilterHeadersStatus::Continue;
-    */
   }
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
@@ -172,6 +263,9 @@ struct  CacheFilter
       case  State::Unknown:
         assert ( 0 );  // ???
         break;
+      case  State::Ignore:
+        return  Http::FilterTrailersStatus::Continue;
+        break;
       case  State::Hit:  // served, but still observed via reverse filter chain
         return  Http::FilterTrailersStatus::Continue;
         break;
@@ -181,19 +275,12 @@ struct  CacheFilter
         return  Http::FilterTrailersStatus::Continue;
         break;
       case  State::Stale:
-        assert ( 0 );  // not yet implemented
+        assert ( 0 );  // not yet implemented, handled in State::Miss until then
         break;
       default:
         assert ( 0 );
         break;
     }
-    /*
-    if ( m_State == State::Unknown || m_State == State::Hit )
-      return  Http::FilterTrailersStatus::Continue;
-    m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    this -> commit ();
-    return  Http::FilterTrailersStatus::Continue;
-    */
   }
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
@@ -203,6 +290,9 @@ struct  CacheFilter
     {
       case  State::Unknown:
         assert ( 0 );  // ???
+        break;
+      case  State::Ignore:
+        return  Http::FilterDataStatus::Continue;
         break;
       case  State::Hit:  // served, but still observed via reverse filter chain
         return  Http::FilterDataStatus::Continue;
@@ -214,31 +304,31 @@ struct  CacheFilter
         return  Http::FilterDataStatus::Continue;
         break;
       case  State::Stale:
-        assert ( 0 );  // not yet implemented
+        assert ( 0 );  // not yet implemented, handled in State::Miss until then
         break;
       default:
         assert ( 0 );
         break;
     }
-    /*
-    if ( m_State == State::Unknown || m_State == State::Hit )
-      return  Http::FilterDataStatus::Continue;
-    m_Response . m_Body += data . toString ();
-    if ( is_last )
-      this -> commit ();
-    return  Http::FilterDataStatus::Continue;
-    */
   }
 
+
+  inline static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
+  {
+    "200", "203", "204", "206",
+    "300", "301", "308",
+    "404", "405", "410", "414", "451",
+    "501",
+  };
 
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
   Response  m_Response;
 
-  enum struct  State { Unknown, Hit, Miss, Stale, };
+  enum struct  State { Unknown, Ignore, Hit, Miss, Stale, };
   State  m_State = State::Unknown;
 
-  auto  reply ( std::shared_ptr<Response>  response ) -> void
+  auto  send_reply ( std::shared_ptr<Response>  response ) -> void
   {
     this -> decoder_callbacks_ -> encodeHeaders ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *response -> m_Headers ), ! ( response -> m_Trailers || !response -> m_Body . empty () ), "<details>" );
     if ( !response -> m_Body . empty () )
@@ -252,7 +342,15 @@ struct  CacheFilter
 
   auto  commit ( ) -> void
   {
-    // todo: is the response cacheable?
+    assert ( m_Response . m_Headers != nullptr );
+    // is the response cacheable?
+    if (
+      !CACHEABLE_STATUS_CODES . contains ( m_Response . m_Headers -> getStatusValue () )
+      // || doesn't have any  Cache-Control headers etc.
+    )
+    {
+      return;
+    }
     this -> insert ( m_Key, std::move ( m_Response ) );
   }
 
@@ -280,53 +378,35 @@ struct  CacheFilter
 
 };
 
-struct  Pending
-{
-  std::vector<std::function<void (Response)> >  m_Subscribers;
-  auto  publish ( const Response & response )
-  {
-    for ( const auto & subscriber : m_Subscribers )
-    {
-      auto  copy = Response {
-        response . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *response . m_Headers ) : nullptr,
-        response . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *response . m_Trailers ) : nullptr,
-        response . m_Body
-      };
-      subscriber ( std::move ( copy ) );
-    }
-  }
-  auto  subscribe ( std::function<void (Response)>  callback ) -> void
-  {
-    m_Subscribers . emplace_back ( std::move ( callback ) );
-  }
-};
-
-struct  Coalescer
-{
-  std::mutex  m_Mtx;
-  std::unordered_map<std::string, Pending>  m_Pending;
-};
-
 struct  RqcFilter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<RqcFilter>
 {
-    RqcFilter ( std::shared_ptr<Coalescer>  coalescer )
+        RqcFilter ( std::shared_ptr<Coalescer>  coalescer )
     : m_Coalescer { coalescer }
   {
     ENVOY_LOG ( debug, "RqcFilter ()" );
   }
 
-    ~RqcFilter ( ) override
+        ~RqcFilter ( ) override
   {
     ENVOY_LOG ( debug, "~RqcFilter ()" );
+  }
+
+  auto  onDestroy ( ) -> void override
+  {
+    ENVOY_LOG ( debug, "RqcFilter::onDestroy ()" );
+  }
+
+  auto  onStreamComplete ( ) -> void override
+  {
+    ENVOY_LOG ( debug, "RqcFilter::onStreamComplete ()" );
   }
 
   auto  decodeHeaders ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus override
   {
     ENVOY_LOG ( debug, "RqcFilter::decodeHeaders (): {}, {}", headers, is_last );
     m_Key = this -> derive_key ( headers );
-    const auto  first = this -> try_insert (
-      m_Key,
+    const auto  first = this -> try_insert ( m_Key,
       [ this ] ( ) -> Pending
       {
         m_State = State::Owner;
@@ -381,14 +461,6 @@ struct  RqcFilter
         assert ( 0 );
         break;
     }
-    /*
-    if ( !m_First )
-      return  Http::FilterHeadersStatus::Continue;
-    m_Response . m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
-    if ( is_last )
-      this -> commit ();
-    return  Http::FilterHeadersStatus::Continue;
-    */
   }
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
@@ -411,13 +483,6 @@ struct  RqcFilter
         assert ( 0 );
         break;
     }
-    /*
-    if ( !m_First )
-      return  Http::FilterTrailersStatus::Continue;
-    m_Response . m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
-    this -> commit ();
-    return  Http::FilterTrailersStatus::Continue;
-    */
   }
 
   auto  encodeData ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus override
@@ -441,27 +506,16 @@ struct  RqcFilter
         assert ( 0 );
         break;
     }
-    /*
-    if ( !m_First )
-      return  Http::FilterDataStatus::Continue;
-    m_Response . m_Body += data . toString ();
-    if ( is_last )
-      this -> commit ();
-    return  Http::FilterDataStatus::Continue;
-    */
   }
 
   std::shared_ptr<Coalescer>  m_Coalescer;
   std::string  m_Key;
-  //bool  m_First = false;  // on cache hit, decodeHeaders () isn't called but encodeHeaders () et al. still *is*.
   Response  m_Response;
 
   enum struct  State { Unknown, Owner, Subscriber, };
   State  m_State = State::Unknown;
 
-  template
-  <  typename  F_
-   >
+  template <typename  F_>
   auto  post ( F_ && fn ) -> void
   {
     // todo: test if the filter is still alive?
@@ -470,7 +524,6 @@ struct  RqcFilter
 
   auto  commit ( ) -> void
   {
-    //assert ( m_First );  // it's a programmer error if you try to commit but you're not the one who's responsible
     assert ( m_State == State::Owner );  // it's a programmer error if you try to commit but you're not the one who's responsible
     auto  l = std::unique_lock { m_Coalescer -> m_Mtx };
     auto  i = m_Coalescer -> m_Pending . find ( m_Key );
@@ -508,7 +561,7 @@ struct  RqcFilter
 
 };
 
-// this is actually more of a filter factory factory. anyways
+// this is actually more of a filter factory factory. anyways ...
 struct  FilterFactory
   : public Common::FactoryBase<envoy::extensions::filters::http::cache_rqc::Config>
 {
