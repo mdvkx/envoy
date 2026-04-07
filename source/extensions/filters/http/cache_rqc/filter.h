@@ -14,6 +14,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 // tl;dr:
@@ -34,11 +35,12 @@ struct  FilterFactory;
 // --------------------------------------------------------------------------------------------------------------------
 
 
+// explicit copy() to accompany move()
 template <typename  T_>
 [[nodiscard]]
-constexpr auto  copy ( T_ t ) -> T_
+constexpr auto  copy ( const T_ & x ) noexcept ( std::is_nothrow_copy_constructible_v<T_> ) -> T_
 {
-  return  T_ { t };
+  return  T_ { x };
 }
 
 namespace  Envoy::Extensions::HttpFilters::CacheRqC
@@ -59,12 +61,14 @@ struct  Ring
   {
     this -> clear ();
   }
+  [[nodiscard]]
   constexpr auto  size ( ) const -> std::size_t
   {
     return  m_Size;
   }
   constexpr auto  find ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
   {
+    (void) predicate;
     return  std::nullopt;
   }
   constexpr auto  clear ( ) -> void
@@ -75,11 +79,12 @@ struct  Ring
     m_Wr  = 0;
   }
   template <typename ...  Args_>
-  constexpr auto  push ( ) -> void
+  constexpr auto  push ( Args_ && ... args ) -> void
   {
     static_assert ( std::constructible_from<T_, Args_ ...> );
     std::construct_at ( std::addressof ( m_Data [ m_Wr ] ), std::forward<Args_> ( args ) ... );
     m_Wr ++;
+    m_Size ++;
     // wrap around
     m_Wr &= N_ - 1;
   }
@@ -87,37 +92,26 @@ struct  Ring
 
 struct  Response
 {
-  //using  Self = Response;
+  using  Self = Response;
 
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
   std::string  m_Body = "";
-
   Envoy::SystemTime  m_Stamp {};   // "response metadata", note: imo, this should really be MonotonicTime
 
-  auto  clone ( ) const -> Response
-  {
-    return  Response
-      { m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *m_Headers ) : nullptr
-      , m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *m_Trailers ) : nullptr
-      , m_Body
-      }
-      ;
-  }
-
-  /*
     Response ( ) = default;
-
-    ~Response ( ) = default;
 
     Response ( Self && src ) = default;
 
     Response ( const Self & src )
-    : m_Headers { src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr },
+    : m_Headers  { src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr },
       m_Trailers { src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) : nullptr },
-      m_Body { src . m_Body }
+      m_Body     { src . m_Body },
+      m_Stamp    { src . m_Stamp }
   {
   }
+
+    ~Response ( ) = default;
 
   auto  operator = ( Self && src ) -> Self & = default;
 
@@ -125,14 +119,13 @@ struct  Response
   {
     if ( this == std::addressof ( src ) )
       return  *this;
-    m_Headers = src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr;
+    m_Headers  = src . m_Headers ? Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *src . m_Headers ) : nullptr;
     m_Trailers = src . m_Trailers ? Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *src . m_Trailers ) : nullptr;
-    m_Body = src . m_Body;
+    m_Body     = src . m_Body;
+    m_Stamp    = src . m_Stamp;
     return  *this;
   }
-    */
 };
-
 
 struct  Cache
 {
@@ -146,9 +139,7 @@ struct  Pending  // maybe extrapolate as: Channel<Pending>?  kis,s
   auto  publish ( const Response & response )
   {
     for ( const auto & subscriber : m_Subscribers )
-    {
-      subscriber ( response . clone () );
-    }
+      subscriber ( copy ( response ) );
   }
   auto  subscribe ( std::function<void (Response)>  callback ) -> void
   {
@@ -165,13 +156,13 @@ struct  Coalescer
 struct  CacheFilter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<CacheFilter>
 {
-        CacheFilter ( std::shared_ptr<Cache>  cache )
+  explicit  CacheFilter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
     ENVOY_LOG ( debug, "CacheFilter ()" );
   }
 
-        ~CacheFilter ( ) override
+    ~CacheFilter ( ) override
   {
     ENVOY_LOG ( debug, "~CacheFilter ()" );
   }
@@ -195,7 +186,7 @@ struct  CacheFilter
     if (
       headers . Path () == nullptr
       || headers . Host () == nullptr
-      || headers . getMethodValue () != "GET"sv  // uppercase important
+      || headers . getMethodValue () != "GET"sv  // uppercase important, TODO: there's probably a better way to check this, though
       || !is_last
     )
     {  // request is not cacheable -> response isn't either
@@ -205,7 +196,7 @@ struct  CacheFilter
 
     m_Key = this -> derive_key ( headers );
 
-    // todo: Cache-Status HTTP response header field, https://www.rfc-editor.org/rfc/rfc9211.html
+    // TODO: Cache-Status HTTP response header field, https://www.rfc-editor.org/rfc/rfc9211.html
     if (
       auto  response = this -> lookup ( m_Key );
       !response
@@ -213,14 +204,14 @@ struct  CacheFilter
     )
     {
       ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): cache miss" );
-      m_State = State::Miss; // todo: State::Stale if expired
+      m_State = State::Miss; // TODO: use State::Stale if expired
       return  Http::FilterHeadersStatus::Continue;
     }
     else
     {
       ENVOY_LOG ( debug, "CacheFilter::decodeHeaders (): cache hit" );
       m_State = State::Hit;
-      this -> send_reply ( *response );
+      this -> stream_response ( copy ( *(*response) ) );
       return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
     }
   }
@@ -236,7 +227,7 @@ struct  CacheFilter
       case  State::Ignore:
         return  Http::FilterHeadersStatus::Continue;  // not cacheable
         break;
-      case  State::Hit:  // served, but still observed via reverse filter chain
+      case  State::Hit:  // served, but still observed because of the full reverse filter chain
         return  Http::FilterHeadersStatus::Continue;
         break;
       case  State::Miss:
@@ -266,7 +257,7 @@ struct  CacheFilter
       case  State::Ignore:
         return  Http::FilterTrailersStatus::Continue;
         break;
-      case  State::Hit:  // served, but still observed via reverse filter chain
+      case  State::Hit:  // served, but still observed because of the full reverse filter chain
         return  Http::FilterTrailersStatus::Continue;
         break;
       case  State::Miss:
@@ -294,7 +285,7 @@ struct  CacheFilter
       case  State::Ignore:
         return  Http::FilterDataStatus::Continue;
         break;
-      case  State::Hit:  // served, but still observed via reverse filter chain
+      case  State::Hit:  // served, but still observed because of the full reverse filter chain
         return  Http::FilterDataStatus::Continue;
         break;
       case  State::Miss:
@@ -314,7 +305,7 @@ struct  CacheFilter
 
 
   inline static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
-  {
+  {  //  taken from file://./../cache/cacheability_utils.cc
     "200", "203", "204", "206",
     "300", "301", "308",
     "404", "405", "410", "414", "451",
@@ -328,16 +319,17 @@ struct  CacheFilter
   enum struct  State { Unknown, Ignore, Hit, Miss, Stale, };
   State  m_State = State::Unknown;
 
-  auto  send_reply ( std::shared_ptr<Response>  response ) -> void
+  auto  stream_response ( Response && response ) -> void
   {
-    this -> decoder_callbacks_ -> encodeHeaders ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *response -> m_Headers ), ! ( response -> m_Trailers || !response -> m_Body . empty () ), "<details>" );
-    if ( !response -> m_Body . empty () )
+    // i have to manually disect the response and send it off piece by piece. it's annoying, but alas ...
+    this -> decoder_callbacks_ -> encodeHeaders ( std::move ( response . m_Headers ), ! ( response . m_Trailers || !response . m_Body . empty () ), "<details>" );
+    if ( !response . m_Body . empty () )
     {
-      auto  data = Buffer::OwnedImpl { response -> m_Body };
-      this -> decoder_callbacks_ -> encodeData ( data, ! response -> m_Trailers );
+      auto  data = Buffer::OwnedImpl { response . m_Body };
+      this -> decoder_callbacks_ -> encodeData ( data, ! response . m_Trailers );
     }
-    if ( response -> m_Trailers )
-      this -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *response -> m_Trailers ) );
+    if ( response . m_Trailers )
+      this -> decoder_callbacks_ -> encodeTrailers ( std::move ( response . m_Trailers ) );
   }
 
   auto  commit ( ) -> void
@@ -345,13 +337,12 @@ struct  CacheFilter
     assert ( m_Response . m_Headers != nullptr );
     // is the response cacheable?
     if (
-      !CACHEABLE_STATUS_CODES . contains ( m_Response . m_Headers -> getStatusValue () )
-      // || doesn't have any  Cache-Control headers etc.
+      CACHEABLE_STATUS_CODES . contains ( m_Response . m_Headers -> getStatusValue () )
+      // && Cache-Control headers etc.
     )
     {
-      return;
+      this -> insert ( m_Key, std::move ( m_Response ) );
     }
-    this -> insert ( m_Key, std::move ( m_Response ) );
   }
 
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
@@ -381,13 +372,13 @@ struct  CacheFilter
 struct  RqcFilter
   : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<RqcFilter>
 {
-        RqcFilter ( std::shared_ptr<Coalescer>  coalescer )
+  explicit  RqcFilter ( std::shared_ptr<Coalescer>  coalescer )
     : m_Coalescer { coalescer }
   {
     ENVOY_LOG ( debug, "RqcFilter ()" );
   }
 
-        ~RqcFilter ( ) override
+    ~RqcFilter ( ) override
   {
     ENVOY_LOG ( debug, "~RqcFilter ()" );
   }
@@ -421,15 +412,7 @@ struct  RqcFilter
           // toss it onto the dispatcher because otherwise i'm gonna get shit for running on an alien thread
           this -> post ( [ this, response = std::move ( response ) ] ( ) mutable -> void
           {
-            // i have to manually disect the response and send it off piece by piece. it's annoying, but alas ...
-            this -> decoder_callbacks_ -> encodeHeaders ( std::move ( response . m_Headers ), ! ( response . m_Trailers || !response . m_Body . empty () ), "<details>" );
-            if ( !response . m_Body . empty () )
-            {
-              auto  data = Buffer::OwnedImpl { response . m_Body };
-              this -> decoder_callbacks_ -> encodeData ( data, ! response . m_Trailers );
-            }
-            if ( response . m_Trailers )
-              this -> decoder_callbacks_ -> encodeTrailers ( std::move ( response . m_Trailers ) );
+            this -> stream_response ( std::move ( response ) );
           } );
         } );
       } );
@@ -518,8 +501,21 @@ struct  RqcFilter
   template <typename  F_>
   auto  post ( F_ && fn ) -> void
   {
-    // todo: test if the filter is still alive?
+    // TODO: test if the filter is still alive?
     this -> decoder_callbacks_ -> dispatcher () . post ( std::forward<F_> ( fn ) );
+  }
+
+  auto  stream_response ( Response && response ) -> void
+  {
+    // i have to manually disect the response and send it off piece by piece. it's annoying, but alas ...
+    this -> decoder_callbacks_ -> encodeHeaders ( std::move ( response . m_Headers ), ! ( response . m_Trailers || !response . m_Body . empty () ), "<details>" );
+    if ( !response . m_Body . empty () )
+    {
+      auto  data = Buffer::OwnedImpl { response . m_Body };
+      this -> decoder_callbacks_ -> encodeData ( data, ! response . m_Trailers );
+    }
+    if ( response . m_Trailers )
+      this -> decoder_callbacks_ -> encodeTrailers ( std::move ( response . m_Trailers ) );
   }
 
   auto  commit ( ) -> void
