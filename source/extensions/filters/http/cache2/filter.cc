@@ -47,7 +47,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
 
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  std::clog << "key = \"" << m_Key << "\"\n";
+  std::osyncstream { std::clog } << "key = \"" << m_Key << "\"\n";
 
   auto  response = m_Cache -> lookup ( m_Key );
 
@@ -56,6 +56,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
     || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are expired
   )
   {
+    ENVOY_LOG ( debug, "cache miss" );
     m_State = State::Miss;
     return  Http::FilterHeadersStatus::Continue;
   }
@@ -78,11 +79,12 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   {
     this -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
   } );
-  return  Http::FilterHeadersStatus::StopIteration;
+  return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
+  ENVOY_LOG ( debug, "headers: {}, is_last: {}", headers, is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -117,6 +119,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
+  ENVOY_LOG ( debug, "trailers: {}", trailers );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -141,6 +144,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
 {
+  ENVOY_LOG ( debug, "data: \"{}\", is_last: {}", data, is_last );
   switch ( m_State )
   {
     case  State::Unknown:
