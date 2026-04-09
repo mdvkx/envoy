@@ -10,7 +10,7 @@
 
 struct  Cache
 {
-  std::mutex  m_Mtx;
+  mutable std::mutex  m_Mtx;
   std::unordered_map<std::string, std::shared_ptr<const Response> >  m_Responses;
   [[nodiscard]]
   auto  lookup ( const std::string & k ) const -> std::optional<std::shared_ptr<const Response> >

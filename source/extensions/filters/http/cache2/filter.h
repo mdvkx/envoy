@@ -61,14 +61,30 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
 
+  auto  post ( std::invocable<void ()> auto && f ) -> void;
 
   auto  commit ( ) -> void;
 
   [[nodiscard]]
   auto  lookup  ( Http::RequestHeaderMap & headers ) const -> std::optional<Response>;
 
-
 };
+
+auto  Filter::post ( std::invocable<void ()> auto && f ) -> void
+{
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::move ( f ) ] ( ) mutable -> void
+  {  // aka "cancel wrapper"
+    auto  p = wp . lock ();
+    if (
+      p != nullptr
+      && p -> m_State != State::Done
+    )
+    {
+      (std::move ( f )) ();
+    }
+
+  } );
+}
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::cache2::Config>
 {

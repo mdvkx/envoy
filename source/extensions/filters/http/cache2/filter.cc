@@ -21,6 +21,7 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 
 auto  Filter::onDestroy ( ) -> void
 {
+  m_State = State::Done;
 }
 
 auto  Filter::onStreamComplete ( ) -> void
@@ -52,17 +53,29 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
   if (
     ! response
-    || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are considered expired
+    || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are expired
   )
   {
     m_State = State::Miss;
-    assert ( 0 );
+    return  Http::FilterHeadersStatus::Continue;
   }
-  else
+
+  m_State = State::Hit;
+  this -> post ( [ response = (*response) ] ( ) -> void
   {
-    m_State = State::Hit;
-    assert ( 0 );
-  }
+    const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
+    this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last );
+  } );
+  this -> post ( [ response = (*response) ] ( ) -> void
+  {
+    auto  data = Buffer::OwnedImpl { response -> m_Data };
+    const auto  is_last = response -> m_Trailers == nullptr;
+    this -> decoder_callbacks_ -> encodeData     ( data, is_last );
+  } );
+  this -> post ( [ response = (*response) ] ( ) -> void
+  {
+    this -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
+  } );
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
@@ -142,7 +155,6 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
 auto  Filter::commit  ( ) -> void
 {
   m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
-  m_State = State::Done;
 }
 
 [[nodiscard]]
