@@ -65,9 +65,6 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   auto  commit ( ) -> void;
 
-  [[nodiscard]]
-  auto  lookup  ( Http::RequestHeaderMap & headers ) const -> std::optional<Response>;
-
 };
 
 auto  Filter::post ( std::invocable<void ()> auto && f ) -> void

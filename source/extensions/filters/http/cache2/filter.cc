@@ -49,7 +49,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   std::clog << "key = \"" << m_Key << "\"\n";
 
-  auto  response = this -> lookup ( m_Key );
+  auto  response = m_Cache -> lookup ( m_Key );
 
   if (
     ! response
@@ -61,6 +61,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
 
   m_State = State::Hit;
+  // maybe use sendLocalReply() instead?
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
@@ -156,12 +157,6 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
 auto  Filter::commit  ( ) -> void
 {
   m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
-}
-
-[[nodiscard]]
-auto  Filter::lookup  ( const std::string & key ) const -> std::optional<std::shared_ptr<const Response> >
-{
-  return  m_Cache -> lookup ( key );
 }
 
 
