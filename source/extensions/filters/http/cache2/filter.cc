@@ -21,7 +21,7 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 
 auto  Filter::onDestroy ( ) -> void
 {
-  m_State = State::Done;
+  m_State = State::Destroyed;
 }
 
 auto  Filter::onStreamComplete ( ) -> void
