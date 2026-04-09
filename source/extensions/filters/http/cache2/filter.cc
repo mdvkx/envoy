@@ -171,6 +171,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::commit  ( ) -> void
 {
+  // it's a bit unfortunate, i think if there's a cache miss and the response is stalled, then lots of clients can get the same response (literally, if they're coalesced) and then all of them are going to hammer the cache trying to insert an identical entry.
   m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
 }
 
