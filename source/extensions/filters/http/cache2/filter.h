@@ -74,7 +74,7 @@ auto  Filter::post ( std::invocable<> auto && f ) -> void
     auto  p = wp . lock ();
     if (
       p != nullptr
-      && p -> m_State != State::Done
+      && p -> m_State != State::Destroyed
     )
     {
       (std::move ( f )) ();
