@@ -47,7 +47,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
 
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  ENVOY_LOG ( "key = \"{}\"", m_Key );
+  ENVOY_LOG ( debug, "key = \"{}\"", m_Key );
 
   auto  response = m_Cache -> lookup ( m_Key );
 
