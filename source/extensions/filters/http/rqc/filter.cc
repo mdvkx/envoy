@@ -50,7 +50,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 {
   ENVOY_LOG ( debug, "decode headers = {}, is last = {}", headers, is_last );
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  if ( m_Collapser -> insert_or ( key, [ ] ( ) { return  Pending {}; }, [ this ] ( Pending & p ) -> void
+  if ( m_Collapser -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this ] ( Pending & p ) -> void
   {
     p . subscribe ( this -> shared_from_this () );
   } ) )
@@ -127,7 +127,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterDataStatus::Continue;
+      return  Http::FilterTrailersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -152,7 +152,7 @@ auto  Filter::post_headers   ( const Http::ResponseHeaderMap & headers,
 auto  Filter::post_data      ( const std::string & data,
                                bool  is_last ) -> void
 {
-  this -> post ( [ this, data = Buffer::OwnedImpl { data } ] ( ) mutable -> void
+  this -> post ( [ this, data = Buffer::OwnedImpl { data }, is_last ] ( ) mutable -> void
   {
     this -> decoder_callbacks_ -> encodeData     ( data, is_last );
   } );

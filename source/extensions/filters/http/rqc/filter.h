@@ -100,7 +100,24 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  post_data      ( const std::string & data,
                          bool  is_last ) -> void;
   auto  post_trailers  ( const Http::ResponseTrailerMap & trailers ) -> void;
+  auto  post ( std::invocable<> auto && f ) -> void;
 };
+
+auto  Filter::post ( std::invocable<> auto && f ) -> void
+{
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::move ( f ) ] ( ) mutable -> void
+  {  // aka "cancel wrapper"
+    auto  p = wp . lock ();
+    if (
+      p != nullptr
+      && p -> m_State != State::Destroyed
+    )
+    {
+      (std::move ( f )) ();
+    }
+
+  } );
+}
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::rqc::Config>
 {
