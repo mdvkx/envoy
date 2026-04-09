@@ -61,21 +61,22 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
 
   m_State = State::Hit;
-  this -> post ( [ response = (*response) ] ( ) -> void
+  this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
     this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last );
   } );
-  this -> post ( [ response = (*response) ] ( ) -> void
+  this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     auto  data = Buffer::OwnedImpl { response -> m_Data };
     const auto  is_last = response -> m_Trailers == nullptr;
     this -> decoder_callbacks_ -> encodeData     ( data, is_last );
   } );
-  this -> post ( [ response = (*response) ] ( ) -> void
+  this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     this -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
   } );
+  return  Http::FilterHeadersStatus::StopIteration;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus

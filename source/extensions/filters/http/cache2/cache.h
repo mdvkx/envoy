@@ -8,6 +8,9 @@
 #include <string>
 #include <unordered_map>
 
+namespace  Envoy::Extensions::HttpFilters::Cache2 {
+
+
 struct  Cache
 {
   mutable std::mutex  m_Mtx;
@@ -27,3 +30,5 @@ struct  Cache
     m_Responses . insert_or_assign ( k, std::move ( v ) );
   }
 };
+
+}

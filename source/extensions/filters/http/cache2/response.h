@@ -6,6 +6,9 @@
 #include <memory>
 #include <string>
 
+namespace  Envoy::Extensions::HttpFilters::Cache2 {
+
+
 struct  Response
 {
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
@@ -13,3 +16,5 @@ struct  Response
   std::string  m_Data = "";
   Envoy::SystemTime  m_Stamp;
 };
+
+}
