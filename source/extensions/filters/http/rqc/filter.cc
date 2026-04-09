@@ -52,11 +52,13 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
     p . subscribe ( this -> shared_from_this () );
   } ) )
   {
+    ENVOY_LOG ( debug, "publisher" );
     m_State = State::Publisher;
     return  Http::FilterHeadersStatus::Continue;
   }
   else
   {
+    ENVOY_LOG ( debug, "subscriber" );
     m_State = State::Subscriber;
     return  Http::FilterHeadersStatus::StopIteration;
   }
