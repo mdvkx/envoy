@@ -13,23 +13,19 @@ auto  Pending::publish_headers ( const Http::ResponseHeaderMap & headers, bool  
   for ( auto & w : m_Waiting )
     w -> post_headers ( headers, is_last );
 }
+
 auto  Pending::publish_trailers ( const Http::ResponseTrailerMap & trailers ) -> void
 {
   for ( auto & w : m_Waiting )
     w -> post_trailers ( trailers );
 }
+
 auto  Pending::publish_data ( const std::string & data, bool is_last ) -> void
 {
   for ( auto & w : m_Waiting )
     w -> post_data ( data, is_last );
 }
-  /*
-auto  Pending::publish ( const Msg & msg ) -> void
-{
 
-  assert ( 0 );
-}
-*/
 auto  Pending::subscribe ( std::shared_ptr<Filter>  x ) -> void
 {
   m_Waiting . emplace_back ( x );
@@ -39,6 +35,7 @@ auto  Pending::subscribe ( std::shared_ptr<Filter>  x ) -> void
 auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG ( debug, "on destroy ()" );
+  m_State = State::Destroyed;
 }
 
 auto  Filter::onStreamComplete ( ) -> void
