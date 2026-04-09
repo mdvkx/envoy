@@ -30,7 +30,7 @@ enum struct  State
   Hit,
   Miss,
 
-  Done,
+  Destroyed,
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
