@@ -70,7 +70,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Publisher:
       // no more subscribers are accepted after this point
@@ -95,7 +95,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterDataStatus::Continue;
       break;
     case  State::Publisher:
       if ( m_Channel )
@@ -117,7 +117,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Publisher:
       if ( m_Channel )
