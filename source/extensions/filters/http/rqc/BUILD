@@ -22,6 +22,7 @@ envoy_cc_library(
         "filter.cc",
     ],
     hdrs = [
+        "cache.h",
         "filter.h",
     ],
     deps = [

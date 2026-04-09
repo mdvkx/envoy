@@ -12,6 +12,7 @@
 
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
+
 enum struct  State
 {
   Unknown,
@@ -26,6 +27,13 @@ enum struct  State
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
+
+  std::shared_ptr<Cache<std::string, Pending> >  m_Cache;
+
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
+  std::string  m_Data;
+
   auto  onDestroy ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
