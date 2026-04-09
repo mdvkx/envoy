@@ -65,7 +65,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
-    this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last );
+    this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last, "i've no idea what this \"details\" argument is for" );
   } );
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
