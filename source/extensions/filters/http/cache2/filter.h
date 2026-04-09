@@ -61,13 +61,13 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
 
-  auto  post ( std::invocable<void ()> auto && f ) -> void;
+  auto  post ( std::invocable<> auto && f ) -> void;
 
   auto  commit ( ) -> void;
 
 };
 
-auto  Filter::post ( std::invocable<void ()> auto && f ) -> void
+auto  Filter::post ( std::invocable<> auto && f ) -> void
 {
   this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::move ( f ) ] ( ) mutable -> void
   {  // aka "cancel wrapper"
