@@ -50,7 +50,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 {
   ENVOY_LOG ( debug, "decode headers = {}, is last = {}", headers, is_last );
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  if ( m_Collapser -> insert_or ( key, [ ] ( ) { return  Pending {}; }, [ ] ( Pending & p ) -> void
+  if ( m_Collapser -> insert_or ( key, [ ] ( ) { return  Pending {}; }, [ this ] ( Pending & p ) -> void
   {
     p . subscribe ( this -> shared_from_this () );
   } ) )
