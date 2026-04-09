@@ -3,6 +3,8 @@
 
 #include "source/common/http/header_map_impl.h"  // createHeaderMap
 
+#include <cassert>
+
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
@@ -85,7 +87,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::touch  ( Http::RequestHeaderMap & headers ) -> void
 {
-  assert ( 0 );
+  ENVOY_LOG ( debug, "touch ()" );
 }
 
 REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
