@@ -98,7 +98,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
 
-  auto  touch          ( const std::string & key ) -> void;
+  auto  touch          ( const std::string & key ) -> bool;
   auto  post_headers   ( const Http::ResponseHeaderMap & headers,
                          bool  is_last ) -> void;
   auto  post_data      ( const std::string & data,
