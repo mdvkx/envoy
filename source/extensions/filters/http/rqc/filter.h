@@ -21,7 +21,7 @@ enum struct  State
   Subscriber, // 2nd, 3rd, 4th, ...
 };
 
-struct  Filter : public Http::PassThroughFilter, public std::enable_shared_from_this<Filter>
+struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
   auto  onDestroy ( ) -> void override;

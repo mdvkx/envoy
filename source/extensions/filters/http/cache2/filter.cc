@@ -49,7 +49,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
   if (
     ! response
-    || std::chrono::duration_cast<std::chrono::seconds> ( std::chrono::system_clock::now () - response . m_Stamp ) > 60s
+    //|| std::chrono::duration_cast<std::chrono::seconds> ( std::chrono::system_clock::now () - response . m_Stamp ) > 60s
   )
   {
     m_State = State::Miss;
