@@ -1,5 +1,6 @@
 #pragma once
 
+#include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase<>
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
@@ -38,7 +39,7 @@ struct  Filter : public Http::PassThroughFilter, public std::enable_shared_from_
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::rqc::Config>
 {
-  using  Base = Common::FactoryBase;
+  using  Base = FactoryBase;
 
   using  Config = envoy::extensions::filters::http::rqc::Config;
 

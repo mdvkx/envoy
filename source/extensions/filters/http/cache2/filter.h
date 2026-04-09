@@ -2,6 +2,7 @@
 
 #include "./response.h"
 
+#include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/common/time.h"  // SystemTime
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 
@@ -22,9 +23,9 @@ enum struct  State
 {
   Unknown,
 
-  NotCacheable,  // request/response not cacheable, or otherwise n/a
   Hit,
   Miss,
+  NotCacheable,  // request/response not cacheable, or otherwise n/a
 };
 
 struct  Filter : public Http::PassThroughFilter, public std::enable_shared_from_this<Filter>
@@ -56,7 +57,7 @@ struct  Filter : public Http::PassThroughFilter, public std::enable_shared_from_
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::cache2::Config>
 {
-  using  Base = Common::FactoryBase;
+  using  Base = FactoryBase;
 
   using  Config = envoy::extensions::filters::http::cache2::Config;
 
