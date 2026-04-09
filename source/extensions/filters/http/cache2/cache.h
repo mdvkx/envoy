@@ -29,6 +29,16 @@ struct  Cache
     auto  l = std::unique_lock { m_Mtx };
     m_Responses . insert_or_assign ( k, std::move ( v ) );
   }
+  auto  remove ( const std::string & k ) -> std::optional<std::shared_ptr<const Response> >
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    const auto  i = m_Responses . find ( k );
+    if ( i == m_Responses . end () )
+      return  std::nullopt;
+    auto  x = std::move ( i -> second );
+    m_Responses . erase ( i );
+    return  x;
+  }
 };
 
 }

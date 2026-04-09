@@ -20,7 +20,7 @@ enum struct  State
   Publisher,  // 1st
   // i'm waiting for the response to be published
   Subscriber, // 2nd, 3rd, 4th, ...
-  Done,
+  Destroyed,
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>

@@ -21,6 +21,7 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 
 auto  Filter::onDestroy ( ) -> void
 {
+  ENVOY_LOG ( debug, "onDestroy()" );
   m_State = State::Destroyed;
 }
 
@@ -30,7 +31,7 @@ auto  Filter::onStreamComplete ( ) -> void
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "" );
+  ENVOY_LOG ( debug, "request: headers: {}, is_last: {}", headers, is_last );
 
   using  namespace std::literals;
 
@@ -84,7 +85,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "headers: {}, is_last: {}", headers, is_last );
+  ENVOY_LOG ( debug, "response: headers: {}, is_last: {}", headers, is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -119,7 +120,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
-  ENVOY_LOG ( debug, "trailers: {}", trailers );
+  ENVOY_LOG ( debug, "response: trailers: {}", trailers );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -144,7 +145,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "data: \"{}\", is_last: {}", data . toString (), is_last );
+  ENVOY_LOG ( debug, "response: data: \"{}\", is_last: {}", data . toString (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
