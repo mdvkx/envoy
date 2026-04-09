@@ -66,25 +66,41 @@ struct  Ring
   {
     return  m_Size;
   }
-  constexpr auto  find ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
+  [[nodiscard]]
+  constexpr auto  capacity ( ) const -> std::size_t
+  {
+    return  N_;
+  }
+  /*
+  constexpr auto  find_if ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
   {
     (void) predicate;
+    return  std::nullopt;
+  }
+    */
+  constexpr auto  find_if ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
+  {
     return  std::nullopt;
   }
   constexpr auto  clear ( ) -> void
   {
     for ( std::size_t i = 0; i < m_Size; i ++ )
       std::destroy_at ( std::addressof ( m_Data [ i ] ) );
+    m_Wr = 0;
     m_Size = 0;
-    m_Wr  = 0;
   }
   template <typename ...  Args_>
   constexpr auto  push ( Args_ && ... args ) -> void
   {
     static_assert ( std::constructible_from<T_, Args_ ...> );
-    std::construct_at ( std::addressof ( m_Data [ m_Wr ] ), std::forward<Args_> ( args ) ... );
+    if ( this -> size () >= this -> capacity () )
+      m_Data [ m_Wr ] = T_ { std::forward<Args_> ( args ) ... };
+    else
+    {
+      std::construct_at ( std::addressof ( m_Data [ m_Wr ] ), std::forward<Args_> ( args ) ... );
+      m_Size ++;
+    }
     m_Wr ++;
-    m_Size ++;
     // wrap around
     m_Wr &= N_ - 1;
   }
