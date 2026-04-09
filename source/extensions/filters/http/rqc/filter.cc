@@ -79,7 +79,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
       //assert ( m_Channel . has_value () && "only publishers are allowed to remove an entry" );
       if ( ! m_Channel )
         return  Http::FilterHeadersStatus::Continue;  // this is a weird case where the publisher receives the headers they published earlier. i dunno, envoy.
-      m_Channel -> publish ( headers, is_last );
+      m_Channel -> publish_headers ( headers, is_last );
       assert ( 0 );
       break;
     case  State::Subscriber:
@@ -100,10 +100,13 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
       assert ( 0 );
       break;
     case  State::Publisher:
-      assert ( 0 );
+      if ( ! m_Channel )
+        return  Http::FilterDataStatus::Continue;
+      m_Channel -> publish_data ( data . toString (), is_last );
+      return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
-      assert ( 0 );
+      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -120,10 +123,11 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       assert ( 0 );
       break;
     case  State::Publisher:
-      assert ( 0 );
+      m_Channel -> publish_trailers ( trailers );
+      return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
-      assert ( 0 );
+      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
