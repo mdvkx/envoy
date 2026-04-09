@@ -31,6 +31,9 @@ envoy_cc_library(
         "//source/common/http:header_map_lib",
         "//source/extensions/filters/http/common:factory_base_lib",
         "//source/extensions/filters/http/common:pass_through_filter_lib",
+    ],
+    copts = [
+      "-Wno-error"
     ]
 )
 

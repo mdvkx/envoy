@@ -68,10 +68,10 @@ public:
   const std::string RateLimit = "envoy.filters.http.ratelimit";
   // Request coalescing filter
   const std::string RequestCoalescing = "envoy.filters.http.request_coalescing";
-  // Request coalescing filter
-  const std::string Rqc = "envoy.filters.http.rqc";
   // Router filter
   const std::string Router = "envoy.filters.http.router";
+  // Request coalescing filter
+  const std::string Rqc = "envoy.filters.http.rqc";
   // Health checking filter
   const std::string HealthCheck = "envoy.filters.http.health_check";
   // Lua filter
