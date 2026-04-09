@@ -143,7 +143,7 @@ auto  Filter::touch  ( const std::string & key ) -> bool
 auto  Filter::post_headers   ( const Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> void
 {
-  this -> post ( [ this, headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last ] ( ) -> void
+  this -> post ( [ this, headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last ] ( ) mutable -> void
   {
     this -> decoder_callbacks_ -> encodeHeaders  ( std::move ( headers ), is_last, "i've no idea what this \"details\" argument is for" );
   } );
@@ -152,7 +152,7 @@ auto  Filter::post_headers   ( const Http::ResponseHeaderMap & headers,
 auto  Filter::post_data      ( const std::string & data,
                                bool  is_last ) -> void
 {
-  this -> post ( [ this, data = Buffer::OwnedImpl { data } ] ( ) -> void
+  this -> post ( [ this, data = Buffer::OwnedImpl { data } ] ( ) mutable -> void
   {
     this -> decoder_callbacks_ -> encodeData     ( data, is_last );
   } );
@@ -160,7 +160,7 @@ auto  Filter::post_data      ( const std::string & data,
 
 auto  Filter::post_trailers  ( const Http::ResponseTrailerMap & trailers ) -> void
 {
-  this -> post ( [ this, trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) ] ( ) -> void
+  this -> post ( [ this, trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) ] ( ) mutable -> void
   {
     this -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
   } );
