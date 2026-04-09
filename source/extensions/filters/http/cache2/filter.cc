@@ -144,7 +144,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "data: \"{}\", is_last: {}", data, is_last );
+  ENVOY_LOG ( debug, "data: \"{}\", is_last: {}", data . toString (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
