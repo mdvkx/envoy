@@ -274,6 +274,13 @@ envoy.filters.http.cache:
   status: wip
   type_urls:
   - envoy.extensions.filters.http.cache.v3.CacheConfig
+envoy.filters.http.cache2:
+  categories:
+  - envoy.filters.http
+  security_posture: unknown
+  status: wip
+  type_urls:
+  - envoy.extensions.filters.http.cache2.Config
 envoy.filters.http.cache_rqc:
   categories:
   - envoy.filters.http
@@ -583,6 +590,13 @@ envoy.filters.http.router:
   status: stable
   type_urls:
   - envoy.extensions.filters.http.router.v3.Router
+envoy.filters.http.rqc:
+  categories:
+  - envoy.filters.http
+  security_posture: unknown
+  status: wip
+  type_urls:
+  - envoy.extensions.filters.http.rqc.Config
 envoy.filters.http.set_metadata:
   categories:
   - envoy.filters.http

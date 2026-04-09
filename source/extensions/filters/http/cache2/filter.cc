@@ -143,6 +143,9 @@ auto  Filter::commit  ( ) -> void
 [[nodiscard]]
 auto  Filter::lookup  ( Http::RequestHeaderMap & headers ) const -> std::optional<Response>
 {
+  const auto  key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
+  std::clog << "key = \"" << key << "\"\n";
+  return  std::nullopt;
   assert ( 0 );
 }
 
