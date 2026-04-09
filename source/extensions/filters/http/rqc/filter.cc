@@ -8,6 +8,34 @@
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
+auto  Pending::publish_headers ( const Http::ResponseHeaderMap & headers, bool  is_last ) -> void
+{
+  for ( auto & w : m_Waiting )
+    w -> post_headers ( headers, is_last );
+}
+auto  Pending::publish_trailers ( const Http::ResponseTrailerMap & trailers ) -> void
+{
+  for ( auto & w : m_Waiting )
+    w -> post_trailers ( trailers );
+}
+auto  Pending::publish_data ( const std::string & data, bool is_last ) -> void
+{
+  for ( auto & w : m_Waiting )
+    w -> post_data ( data, is_last );
+}
+  /*
+auto  Pending::publish ( const Msg & msg ) -> void
+{
+
+  assert ( 0 );
+}
+*/
+auto  Pending::subscribe ( std::shared_ptr<Filter>  x ) -> void
+{
+  m_Waiting . emplace_back ( x );
+}
+
+
 auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG ( debug, "on destroy ()" );
@@ -15,14 +43,26 @@ auto  Filter::onDestroy ( ) -> void
 
 auto  Filter::onStreamComplete ( ) -> void
 {
+  ENVOY_LOG ( debug, "on stream complete ()" );
 }
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG ( debug, "decode headers = {}, is last = {}", headers, is_last );
-
-  this -> touch ( headers );
-  assert ( 0 );
+  m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
+  if ( m_Collapser -> insert_or ( key, [ ] ( ) { return  Pending {}; }, [ ] ( Pending & p ) -> void
+  {
+    p . subscribe ( this -> shared_from_this () );
+  } ) )
+  {
+    m_State = State::Publisher;
+    return  Http::FilterHeadersStatus::Continue;
+  }
+  else
+  {
+    m_State = State::Subscriber;
+    return  Http::FilterHeadersStatus::StopIteration;
+  }
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
@@ -34,6 +74,12 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
       assert ( 0 );
       break;
     case  State::Publisher:
+      // no more subscribers are accepted after this point
+      m_Channel = m_Collapser -> remove ( m_Key );
+      //assert ( m_Channel . has_value () && "only publishers are allowed to remove an entry" );
+      if ( ! m_Channel )
+        return  Http::FilterHeadersStatus::Continue;  // this is a weird case where the publisher receives the headers they published earlier. i dunno, envoy.
+      m_Channel -> publish ( headers, is_last );
       assert ( 0 );
       break;
     case  State::Subscriber:
@@ -85,10 +131,37 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   }
 }
 
-auto  Filter::touch  ( Http::RequestHeaderMap & headers ) -> void
+auto  Filter::touch  ( const std::string & key ) -> bool
 {
   ENVOY_LOG ( debug, "touch ()" );
 }
+
+auto  Filter::post_headers   ( const Http::ResponseHeaderMap & headers,
+                               bool  is_last ) -> void
+{
+  this -> post ( [ this, headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last ] ( ) -> void
+  {
+    this -> decoder_callbacks_ -> encodeHeaders  ( std::move ( headers ), is_last, "i've no idea what this \"details\" argument is for" );
+  } );
+}
+
+auto  Filter::post_data      ( const std::string & data,
+                               bool  is_last ) -> void
+{
+  this -> post ( [ this, data = Buffer::OwnedImpl { data } ] ( ) -> void
+  {
+    this -> decoder_callbacks_ -> encodeData     ( data, is_last );
+  } );
+}
+
+auto  Filter::post_trailers  ( const Http::ResponseTrailerMap & trailers ) -> void
+{
+  this -> post ( [ this, trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) ] ( ) -> void
+  {
+    this -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
+  } );
+}
+
 
 REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
 
