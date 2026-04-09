@@ -91,6 +91,9 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
     case  State::N_A:
       return  Http::FilterHeadersStatus::Continue;
       break;
+    case  State::Hit:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
     case  State::Miss:
       if (
         ! CACHEABLE_STATUS_CODES . contains ( headers . getStatusValue () )
@@ -122,6 +125,9 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
     case  State::N_A:
       return  Http::FilterTrailersStatus::Continue;
       break;
+    case  State::Hit:
+      return  Http::FilterTrailersStatus::Continue;
+      break;
     case  State::Miss:
       m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
       this -> commit ();
@@ -139,6 +145,9 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
   {
     case  State::Unknown:
       assert ( 0 );
+      break;
+    case  State::Hit:
+      return  Http::FilterDataStatus::Continue;
       break;
     case  State::N_A:
       return  Http::FilterDataStatus::Continue;
