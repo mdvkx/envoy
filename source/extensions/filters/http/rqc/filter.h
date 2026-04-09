@@ -32,9 +32,9 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
                          bool  is_last ) -> Http::FilterHeadersStatus override;
   auto  encodeHeaders  ( Http::ResponseHeaderMap & headers,
                          bool  is_last ) -> Http::FilterHeadersStatus override;
-  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
+  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
 
   auto  touch  ( Http::RequestHeaderMap & headers ) -> void;
 };

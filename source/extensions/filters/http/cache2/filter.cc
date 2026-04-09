@@ -21,7 +21,7 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 
 auto  Filter::onDestroy ( ) -> void
 {
-  ENVOY_LOG ( debug, "onDestroy()" );
+  ENVOY_LOG ( debug, "on destroy ()" );
   m_State = State::Destroyed;
 }
 
@@ -31,7 +31,7 @@ auto  Filter::onStreamComplete ( ) -> void
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "request: headers: {}, is_last: {}", headers, is_last );
+  ENVOY_LOG ( debug, "decode headers = {}, is last = {}", headers, is_last );
 
   using  namespace std::literals;
 
@@ -44,7 +44,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   )
   {
     m_State = State::N_A;
-    assert ( 0 );
+    return  Http::FilterHeadersStatus::Continue;
   }
 
   m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
@@ -85,7 +85,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "response: headers: {}, is_last: {}", headers, is_last );
+  ENVOY_LOG ( debug, "encode headers = {}, is last = {}", headers, is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -118,9 +118,35 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
   }
 }
 
+auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
+{
+  ENVOY_LOG ( debug, "encode data = \"{}\", is last = {}", data . toString (), is_last );
+  switch ( m_State )
+  {
+    case  State::Unknown:
+      assert ( 0 );
+      break;
+    case  State::N_A:
+      return  Http::FilterDataStatus::Continue;
+      break;
+    case  State::Hit:
+      return  Http::FilterDataStatus::Continue;
+      break;
+    case  State::Miss:
+      m_Data += data . toString ();
+      if ( is_last )
+        this -> commit ();
+      return  Http::FilterDataStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable" );
+      break;
+  }
+}
+
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
-  ENVOY_LOG ( debug, "response: trailers: {}", trailers );
+  ENVOY_LOG ( debug, "encode trailers = {}", trailers );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -136,32 +162,6 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       m_Trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers );
       this -> commit ();
       return  Http::FilterTrailersStatus::Continue;
-      break;
-    default:
-      assert ( 0 && "unreachable" );
-      break;
-  }
-}
-
-auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
-{
-  ENVOY_LOG ( debug, "response: data: \"{}\", is_last: {}", data . toString (), is_last );
-  switch ( m_State )
-  {
-    case  State::Unknown:
-      assert ( 0 );
-      break;
-    case  State::Hit:
-      return  Http::FilterDataStatus::Continue;
-      break;
-    case  State::N_A:
-      return  Http::FilterDataStatus::Continue;
-      break;
-    case  State::Miss:
-      m_Data += data . toString ();
-      if ( is_last )
-        this -> commit ();
-      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
