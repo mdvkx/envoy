@@ -140,9 +140,14 @@ auto  Filter::commit  ( ) -> void
   assert ( 0 );
 }
 
+[[nodiscard]]
 auto  Filter::lookup  ( Http::RequestHeaderMap & headers ) const -> std::optional<Response>
 {
   assert ( 0 );
 }
+
+
+REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
+
 
 }

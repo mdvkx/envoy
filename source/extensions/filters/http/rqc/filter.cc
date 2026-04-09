@@ -84,4 +84,6 @@ auto  Filter::touch  ( Http::RequestHeaderMap & headers ) -> void
   assert ( 0 );
 }
 
+REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
+
 }
