@@ -78,7 +78,7 @@ struct  Ring
     return  std::nullopt;
   }
     */
-  constexpr auto  find_if ( const std::function<bool (const T_ &)> & predicate ) const -> std::optional<std::reference_wrapper<T_> >
+  constexpr auto  find_if ( const std::function<bool (const T_ &)> &  ) const -> std::optional<std::reference_wrapper<T_> >
   {
     return  std::nullopt;
   }
