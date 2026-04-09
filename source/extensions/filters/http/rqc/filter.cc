@@ -73,11 +73,12 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Publisher:
+      if ( m_Channel )    // this is a weird case where the publisher receives the headers they published earlier. i dunno, envoy.
+        return  Http::FilterHeadersStatus::Continue;
       // no more subscribers are accepted after this point
       m_Channel = m_Collapser -> remove ( m_Key );
-      //assert ( m_Channel . has_value () && "only publishers are allowed to remove an entry" );
-      if ( m_Channel )  // this is a weird case where the publisher receives the headers they published earlier. i dunno, envoy.
-        m_Channel -> publish_headers ( headers, is_last );
+      assert ( m_Channel . has_value () && "only publishers are allowed to remove an entry" );
+      m_Channel -> publish_headers ( headers, is_last );
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Subscriber:
