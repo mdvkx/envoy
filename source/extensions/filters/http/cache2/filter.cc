@@ -37,19 +37,22 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   if (
     headers . Host () == nullptr  // missing host
     || headers . Path () == nullptr  // missing resource id
-    || headers . getMethodValue () != "GET"sv  // only get requests are cacheable
+    || headers . getMethodValue () != "GET"sv  // only get requests are cacheable, TODO: uppercase is important, find a more foolproof way
     || ! is_last  // requests with body/trailers aren't cacheable
   )
   {
-    m_State = State::NotCacheable;
+    m_State = State::N_A;
     assert ( 0 );
   }
 
-  auto  response = this -> lookup ( headers );
+  m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
+  std::clog << "key = \"" << m_Key << "\"\n";
+
+  auto  response = this -> lookup ( m_Key );
 
   if (
     ! response
-    //|| std::chrono::duration_cast<std::chrono::seconds> ( std::chrono::system_clock::now () - response . m_Stamp ) > 60s
+    || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are considered expired
   )
   {
     m_State = State::Miss;
@@ -57,6 +60,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
   else
   {
+    m_State = State::Hit;
     assert ( 0 );
   }
 }
@@ -68,7 +72,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::NotCacheable:
+    case  State::N_A:
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Miss:
@@ -77,7 +81,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
         // || no cache-control, etc ...
       )
       {
-        m_State = State::NotCacheable;
+        m_State = State::N_A;
         return  Http::FilterHeadersStatus::Continue;
       }
       m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
@@ -99,7 +103,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::NotCacheable:
+    case  State::N_A:
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Miss:
@@ -120,7 +124,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::NotCacheable:
+    case  State::N_A:
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Miss:
@@ -137,16 +141,14 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
 
 auto  Filter::commit  ( ) -> void
 {
-  assert ( 0 );
+  m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
+  m_State = State::Done;
 }
 
 [[nodiscard]]
-auto  Filter::lookup  ( Http::RequestHeaderMap & headers ) const -> std::optional<Response>
+auto  Filter::lookup  ( const std::string & key ) const -> std::optional<std::shared_ptr<const Response> >
 {
-  const auto  key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  std::clog << "key = \"" << key << "\"\n";
-  return  std::nullopt;
-  assert ( 0 );
+  return  m_Cache -> lookup ( key );
 }
 
 

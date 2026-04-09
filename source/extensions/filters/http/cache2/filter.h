@@ -1,5 +1,6 @@
 #pragma once
 
+#include "./cache.h"
 #include "./response.h"
 
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
@@ -19,23 +20,36 @@
 
 namespace  Envoy::Extensions::HttpFilters::Cache2 {
 
+
 enum struct  State
 {
   Unknown,
 
+  N_A,  // request/response not cacheable, or otherwise n/a
+
   Hit,
   Miss,
-  NotCacheable,  // request/response not cacheable, or otherwise n/a
+
+  Done,
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
 
+  std::shared_ptr<Cache>  m_Cache;
+
+  std::string  m_Key;
+
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
   std::string  m_Data = "";
   Envoy::SystemTime  m_Stamp;
+
+  Filter ( std::shared_ptr<Cache>  cache )
+    : m_Cache { cache }
+  {
+  }
 
   auto  onDestroy ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
@@ -71,9 +85,10 @@ struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::c
                                             const std::string & ,
                                             Server::Configuration::FactoryContext &  ) -> Envoy::Http::FilterFactoryCb override
   {
-    return  [ ] ( Http::FilterChainFactoryCallbacks & callbacks )
+    auto  cache = std::make_shared<Cache> ();
+    return  [ = ] ( Http::FilterChainFactoryCallbacks & callbacks )
     {
-      callbacks . addStreamFilter ( std::make_shared<Filter> () );
+      callbacks . addStreamFilter ( std::make_shared<Filter> ( cache ) );
     };
   }
 };
