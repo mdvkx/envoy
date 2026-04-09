@@ -84,6 +84,10 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
   std::string  m_Data;
 
+        Filter ( std::shared_ptr<Collapser>  collapser )
+    : m_Collapser { collapser }
+  {
+  }
   auto  onDestroy ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
@@ -94,7 +98,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
 
-  auto  touch          ( Http::RequestHeaderMap & headers ) -> void;
+  auto  touch          ( const std::string & key ) -> void;
   auto  post_headers   ( const Http::ResponseHeaderMap & headers,
                          bool  is_last ) -> void;
   auto  post_data      ( const std::string & data,
@@ -134,9 +138,10 @@ struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::r
                                             const std::string & ,
                                             Server::Configuration::FactoryContext &  ) -> Envoy::Http::FilterFactoryCb override
   {
-    return  [ ] ( Http::FilterChainFactoryCallbacks & callbacks )
+    auto  collapser = std::make_shared<Collapser> ();
+    return  [ = ] ( Http::FilterChainFactoryCallbacks & callbacks )
     {
-      callbacks . addStreamFilter ( std::make_shared<Filter> () );
+      callbacks . addStreamFilter ( std::make_shared<Filter> ( collapser ) );
     };
   }
 };
