@@ -1,5 +1,8 @@
 #pragma once
 
+#include <bit>  // std::has_single_bit
+#include <cstddef>  // std::{byte, size_t}
+
 template <typename  T_, std::size_t  N_>
 struct  Ring
 {

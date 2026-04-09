@@ -61,7 +61,8 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   }
 
   m_State = State::Hit;
-  // maybe use sendLocalReply() instead?
+  ENVOY_LOG ( debug, "cache hit" );
+  // TODO: maybe use sendLocalReply() instead?
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
     const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
