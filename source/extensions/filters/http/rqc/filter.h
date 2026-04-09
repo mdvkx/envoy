@@ -28,8 +28,6 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 {
   State  m_State = State::Unknown;
 
-  std::shared_ptr<Cache<std::string, Pending> >  m_Cache;
-
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
   std::string  m_Data;
