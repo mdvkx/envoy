@@ -135,11 +135,6 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   }
 }
 
-auto  Filter::touch  ( const std::string & key ) -> bool
-{
-  ENVOY_LOG ( debug, "touch ()" );
-}
-
 auto  Filter::post_headers   ( const Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> void
 {
