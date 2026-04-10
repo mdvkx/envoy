@@ -31,6 +31,7 @@ enum struct  State
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
+  std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
   Filter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
