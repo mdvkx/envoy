@@ -31,21 +31,21 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
     p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) mutable -> void
     {
       ENVOY_LOG ( debug, "(subscriber) received a message" );
-      std::visit ( [ ] ( auto && x )
+      std::visit ( [ this ] ( auto && x )
       {
         using  T = std::remove_cvref_t<decltype ( x )>;
         if      constexpr ( std::is_same_v<T, MsgHeaders> )
-          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
             this -> decoder_callbacks_ -> encodeHeaders   ( std::move ( x -> m_Headers ), x -> m_IsLast );
           } );
         else if constexpr ( std::is_same_v<T, MsgBody> )
-          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeBody      ( *x -> m_Body, x -> m_IsLast );
+            this -> decoder_callbacks_ -> encodeData      ( *x -> m_Body, x -> m_IsLast );
           } );
         else if constexpr ( std::is_same_v<T, MsgTrailers> )
-          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
             this -> decoder_callbacks_ -> encodeTrailers  ( std::move ( x -> m_Trailers ) );
           } );

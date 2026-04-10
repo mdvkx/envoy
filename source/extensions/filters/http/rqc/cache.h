@@ -1,5 +1,8 @@
 #pragma once
 
+#include "envoy/buffer/buffer.h"  // Buffer::Instance
+#include "envoy/http/header_map.h"  // RequestHeaderMap
+
 #include <cstddef>
 #include <functional>
 #include <mutex>
