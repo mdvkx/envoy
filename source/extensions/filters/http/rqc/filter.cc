@@ -28,7 +28,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   std::size_t  cnt = 0;
   if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &cnt ] ( Pending & p ) -> void
   {
-    p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) { this -> msg ( std::move ( msg ); } );
+    p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) { this -> msg ( std::move ( msg ) ); } );
     cnt = p . m_Waiting . size ();  // dirty hack, temporary
   } ) )
   {
