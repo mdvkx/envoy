@@ -46,7 +46,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   std::string  m_Data = "";
   Envoy::SystemTime  m_Stamp;
 
-  Filter ( std::shared_ptr<Cache>  cache )
+        Filter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
   }
@@ -61,10 +61,8 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
 
-  auto  post ( std::invocable<> auto && f ) -> void;
-
-  auto  commit ( ) -> void;
-
+  auto  commit         ( ) -> void;
+  auto  post           ( std::invocable<> auto && f ) -> void;
 };
 
 auto  Filter::post ( std::invocable<> auto && f ) -> void
