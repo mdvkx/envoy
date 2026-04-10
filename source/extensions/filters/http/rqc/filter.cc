@@ -51,7 +51,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                          static_cast<const void *> ( this ), m_Key, m_Pending -> m_Waiting . size () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
-        send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
+        send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last, "details" } );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
