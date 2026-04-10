@@ -56,7 +56,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
     case  State::Publisher:
       if ( auto  x = m_Cache -> remove ( m_Key );  x . has_value () )
       {
-        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, *x );
+        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, x -> m_Waiting . size () );
 
       }
       else
