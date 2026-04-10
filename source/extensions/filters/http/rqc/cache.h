@@ -14,6 +14,8 @@ namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 struct  MsgHeaders
 {
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  bool  m_IsLast;
 };
 
 struct  MsgBody

@@ -8,16 +8,6 @@
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
-auto  Filter::onDestroy ( ) -> void
-{
-  ENVOY_LOG ( debug, "<{}> on destroy ()", static_cast<const void *> ( this ) );
-}
-
-auto  Filter::onStreamComplete ( ) -> void
-{
-  ENVOY_LOG ( debug, "<{}> stream complete ()", static_cast<const void *> ( this ) );
-}
-
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
@@ -57,11 +47,11 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       assert ( ! m_Pending . has_value () );
       m_Pending = m_Cache -> remove ( m_Key );
       assert ( m_Pending . has_value () );
-      ENVOY_LOG ( debug, "<{}> response: removing \"{}\" from pending, there are {} subscribers attached.",
+      ENVOY_LOG ( debug, "<{}> removing pending request for key \"{}\" ({} subscribers).",
                          static_cast<const void *> ( this ), m_Key, m_Pending -> m_Waiting . size () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
-        send_msg ( MsgHeaders {} );
+        send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -121,28 +111,48 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       break;
   }
 }
+
+auto  Filter::onStreamComplete ( ) -> void
+{
+  ENVOY_LOG ( debug, "<{}> stream complete ()", static_cast<const void *> ( this ) );
+}
+
+auto  Filter::onDestroy ( ) -> void
+{
+  ENVOY_LOG ( debug, "<{}> on destroy ()", static_cast<const void *> ( this ) );
+}
+
 auto  Filter::msg ( Msg && msg ) -> void
 {
   std::visit ( [ this ] ( auto && msg ) -> void
   {
     using  T = std::remove_cvref_t<decltype ( msg )>;
     if      constexpr ( std::is_same_v<T, MsgHeaders> )
-      this -> post ( [ this ] ( ) mutable -> void
+    {
+      this -> post ( [ this, msg = std::move ( msg ) ] ( ) mutable -> void
       {
         ENVOY_LOG ( debug, "<{}> received headers",  static_cast<const void *> ( this ) );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( msg . m_Headers ), msg . m_IsLast );
       } );
+    }
     else if constexpr ( std::is_same_v<T, MsgBody> )
+    {
       this -> post ( [ this ] ( ) mutable -> void
       {
         ENVOY_LOG ( debug, "<{}> received body",     static_cast<const void *> ( this ) );
       } );
+    }
     else if constexpr ( std::is_same_v<T, MsgTrailers> )
+    {
       this -> post ( [ this ] ( ) mutable -> void
       {
         ENVOY_LOG ( debug, "<{}> received trailers", static_cast<const void *> ( this ) );
       } );
+    }
     else
+    {
       assert ( 0 );
+    }
   }, std::move ( msg ) );
 }
 
