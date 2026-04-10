@@ -21,9 +21,10 @@ auto  Filter::onStreamComplete ( ) -> void
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "<{}> request: headers: [{}], is_last: {}", headers, is_last );
+  ENVOY_LOG ( debug, "<{}> request: headers: [{}], is_last: {}",
+                      static_cast<const void *> ( this ), headers, is_last );
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  ENVOY_LOG ( debug, "<{}> request: m_Key = \"{}\"", m_Key );
+  ENVOY_LOG ( debug, "<{}> request: m_Key = \"{}\"", static_cast<const void *> ( this ), m_Key );
   std::size_t  q = 0;
   if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &q ] ( Pending & p ) -> void
   {
