@@ -29,10 +29,12 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
     c += 1;
   } ) )
   {
+    m_State = State::Publisher;
     ENVOY_LOG ( debug, "request: creating new pending request for key \"{}\"", m_Key );
   }
   else
   {
+    m_State = State::Subscriber;
     ENVOY_LOG ( debug, "request: request for key \"{}\" already pending with {} subscribers in queue excluding myself", m_Key, q );
   }
   return  Http::FilterHeadersStatus::Continue;
@@ -45,6 +47,19 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
   switch ( m_State )
   {
     case  State::Unknown:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Publisher:
+      if ( auto  x = m_Cache -> remove ( m_Key );  x . has_value () )
+      {
+        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.\n", m_Key, *x );
+      }
+      else
+      {
+      }
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Subscriber:
       return  Http::FilterHeadersStatus::Continue;
       break;
     default:
@@ -62,6 +77,12 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
     case  State::Unknown:
       return  Http::FilterDataStatus::Continue;
       break;
+    case  State::Publisher:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
     default:
       assert ( 0 && "unreachable" );
       break;
@@ -75,6 +96,12 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   {
     case  State::Unknown:
       return  Http::FilterTrailersStatus::Continue;
+      break;
+    case  State::Publisher:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterHeadersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );

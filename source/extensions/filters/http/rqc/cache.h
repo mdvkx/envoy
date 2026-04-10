@@ -30,6 +30,17 @@ struct  Cache
       return  false;
     }
   }
+  auto  remove ( const std::string & k ) -> std::optional<std::size_t>
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    auto  i = m_Elements . find ( k );
+    if ( i == m_Elements . end () )
+      return  std::nullopt;
+    auto  x = std::move ( i -> second );
+    m_Elements . erase ( i );
+    l . unlock ();
+    return  x;
+  }
 };
 
 }
