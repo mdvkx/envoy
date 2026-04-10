@@ -78,10 +78,10 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Publisher:
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -98,10 +98,10 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Publisher:
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterTrailersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
