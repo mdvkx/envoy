@@ -1,5 +1,7 @@
 #pragma once
 
+#include "./cache.h"
+
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 #include "source/common/common/logger.h"  // Loggable, Id
@@ -30,6 +32,10 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 {
   State  m_State = State::Unknown;
   std::string  m_Key;
+  Filter ( std::shared_ptr<Cache>  cache )
+    : m_Cache { cache }
+  {
+  }
   auto  onDestroy ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
@@ -56,9 +62,10 @@ struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::r
                                             const std::string & ,
                                             Server::Configuration::FactoryContext &  ) -> Envoy::Http::FilterFactoryCb override
   {
+    auto  cache = std::make_shared<Cache> ();
     return  [ = ] ( Http::FilterChainFactoryCallbacks & callbacks )
     {
-      callbacks . addStreamFilter ( std::make_shared<Filter> ( ) );
+      callbacks . addStreamFilter ( std::make_shared<Filter> ( cache ) );
     };
   }
 };

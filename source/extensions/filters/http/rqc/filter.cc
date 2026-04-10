@@ -19,16 +19,29 @@ auto  Filter::onStreamComplete ( ) -> void
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "request: headers: {},{},{}, is_last: {}", headers . getMethodValue (), headers . getHostValue (), headers . getPathValue (), is_last );
+  ENVOY_LOG ( debug, "request: headers: [{}], is_last: {}", headers, is_last );
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   ENVOY_LOG ( debug, "request: m_Key = \"{}\"", m_Key );
+  std::size_t  q = 0;
+  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  std::size_t { 0 }; }, [ &q ] ( std::size_t  c ) mutable -> void
+  {
+    q = c;  // dirty hack, temporary
+    c += 1;
+  } ) )
+  {
+    ENVOY_LOG ( debug, "request: creating new pending request for key \"{}\"", m_Key );
+  }
+  else
+  {
+    ENVOY_LOG ( debug, "request: request for key \"{}\" already pending with {} subscribers in queue excluding myself", m_Key, q );
+  }
   return  Http::FilterHeadersStatus::Continue;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "response: headers: {}, is_last: {}", headers . getStatusValue (), is_last );
+  ENVOY_LOG ( debug, "response: headers: [{}], is_last: {}", headers, is_last );
   switch ( m_State )
   {
     case  State::Unknown:
