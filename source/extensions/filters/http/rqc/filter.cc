@@ -54,10 +54,12 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Publisher:
-      if ( auto  x = m_Cache -> remove ( m_Key );  x . has_value () )
+      m_Pending = m_Cache -> remove ( m_Key );
+      if ( m_Pending . has_value () )
       {
-        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, x -> m_Waiting . size () );
-
+        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, m_Pending -> m_Waiting . size () );
+        for ( auto & w : m_Pending -> m_Waiting )
+          w ();
       }
       else
       {
@@ -84,6 +86,8 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Publisher:
+      for ( auto & w : m_Pending -> m_Waiting )
+        w ();
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
@@ -104,6 +108,8 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Publisher:
+      for ( auto & w : m_Pending -> m_Waiting )
+        w ();
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:

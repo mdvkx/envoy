@@ -33,6 +33,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   State  m_State = State::Unknown;
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
+  std::optional<Pending>  m_Pending;
   Filter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
