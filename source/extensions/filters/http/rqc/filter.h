@@ -53,7 +53,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
     this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), x = std::move ( x ) ] ( ) mutable -> void
     {
       if ( auto  p = wp . lock () )
-        (std::move ( x )) ();
+        x ();
     } );
   }
 };

@@ -77,16 +77,13 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Publisher:
+      assert ( ! m_Pending . has_value () );
       m_Pending = m_Cache -> remove ( m_Key );
-      if ( m_Pending . has_value () )
+      assert ( m_Pending . has_value () );
+      ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, m_Pending -> m_Waiting . size () );
+      for ( auto & w : m_Pending -> m_Waiting )
       {
-        ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, m_Pending -> m_Waiting . size () );
-        for ( auto & w : m_Pending -> m_Waiting )
-          w ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
-      }
-      else
-      {
-        ENVOY_LOG ( debug, "response: \"{}\" was not in cache, weird!", m_Key );
+        w ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -109,6 +106,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Publisher:
+      assert ( m_Pending . has_value () );
       for ( auto & w : m_Pending -> m_Waiting )
         w ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( data ), is_last } );
       return  Http::FilterDataStatus::Continue;
@@ -131,6 +129,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Publisher:
+      assert ( m_Pending . has_value () );
       for ( auto & w : m_Pending -> m_Waiting )
         w ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
       return  Http::FilterTrailersStatus::Continue;
