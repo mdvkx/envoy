@@ -25,46 +25,21 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                       static_cast<const void *> ( this ), headers, is_last );
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   ENVOY_LOG ( debug, "<{}> request: m_Key = \"{}\"", static_cast<const void *> ( this ), m_Key );
-  std::size_t  q = 0;
-  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &q ] ( Pending & p ) -> void
+  std::size_t  cnt = 0;
+  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &cnt ] ( Pending & p ) -> void
   {
-    q = p . m_Waiting . size ();  // dirty hack, temporary
-    p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) mutable -> void
-    {
-      ENVOY_LOG ( debug, "<{}> received a message", static_cast<const void *> ( this ) );
-      std::visit ( [ this ] ( auto && x )
-      {
-        using  T = std::remove_cvref_t<decltype ( x )>;
-        if      constexpr ( std::is_same_v<T, MsgHeaders> )
-          this -> post ( [ this ] ( ) mutable -> void
-          {
-            ENVOY_LOG ( debug, "<{}> received headers",  static_cast<const void *> ( this ) );
-          } );
-        else if constexpr ( std::is_same_v<T, MsgBody> )
-          this -> post ( [ this ] ( ) mutable -> void
-          {
-            ENVOY_LOG ( debug, "<{}> received body",     static_cast<const void *> ( this ) );
-          } );
-        else if constexpr ( std::is_same_v<T, MsgTrailers> )
-          this -> post ( [ this ] ( ) mutable -> void
-          {
-            ENVOY_LOG ( debug, "<{}> received trailers", static_cast<const void *> ( this ) );
-          } );
-        else
-          assert ( 0 );
-      }, std::move ( msg ) );
-    } );
+    p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) { this -> msg ( std::move ( msg ); } );
+    cnt = p . m_Waiting . size ();  // dirty hack, temporary
   } ) )
   {
     m_State = State::Publisher;
-    ENVOY_LOG ( debug, "<{}> request: creating new pending request for key \"{}\"", static_cast<const void *> ( this ), m_Key );
+    ENVOY_LOG ( debug, "<{}> request: publisher for key \"{}\"", static_cast<const void *> ( this ), m_Key );
     return  Http::FilterHeadersStatus::Continue;
   }
   else
   {
     m_State = State::Subscriber;
-    ENVOY_LOG ( debug, "<{}> request: request for key \"{}\" already pending with {} subscribers in queue excluding myself",
-                       static_cast<const void *> ( this ), m_Key, q );
+    ENVOY_LOG ( debug, "<{}> request: subscriber #{} for key \"{}\"", static_cast<const void *> ( this ), cnt, m_Key );
     return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
   }
 }
@@ -84,9 +59,9 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       assert ( m_Pending . has_value () );
       ENVOY_LOG ( debug, "<{}> response: removing \"{}\" from pending, there are {} subscribers attached.",
                          static_cast<const void *> ( this ), m_Key, m_Pending -> m_Waiting . size () );
-      for ( auto & w : m_Pending -> m_Waiting )
+      for ( auto & send_msg : m_Pending -> m_Waiting )
       {
-        w ( MsgHeaders {} );
+        send_msg ( MsgHeaders {} );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -111,8 +86,8 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       break;
     case  State::Publisher:
       assert ( m_Pending . has_value () );
-      for ( auto & w : m_Pending -> m_Waiting )
-        w ( MsgBody {} );
+      for ( auto & send_msg : m_Pending -> m_Waiting )
+        send_msg ( MsgBody {} );
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
@@ -134,8 +109,8 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       break;
     case  State::Publisher:
       assert ( m_Pending . has_value () );
-      for ( auto & w : m_Pending -> m_Waiting )
-        w ( MsgTrailers {} );
+      for ( auto & send_msg : m_Pending -> m_Waiting )
+        send_msg ( MsgTrailers {} );
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
@@ -145,6 +120,30 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       assert ( 0 && "unreachable" );
       break;
   }
+}
+auto  Filter::msg ( Msg && msg ) -> void
+{
+  std::visit ( [ this ] ( auto && msg ) -> void
+  {
+    using  T = std::remove_cvref_t<decltype ( msg )>;
+    if      constexpr ( std::is_same_v<T, MsgHeaders> )
+      this -> post ( [ this ] ( ) mutable -> void
+      {
+        ENVOY_LOG ( debug, "<{}> received headers",  static_cast<const void *> ( this ) );
+      } );
+    else if constexpr ( std::is_same_v<T, MsgBody> )
+      this -> post ( [ this ] ( ) mutable -> void
+      {
+        ENVOY_LOG ( debug, "<{}> received body",     static_cast<const void *> ( this ) );
+      } );
+    else if constexpr ( std::is_same_v<T, MsgTrailers> )
+      this -> post ( [ this ] ( ) mutable -> void
+      {
+        ENVOY_LOG ( debug, "<{}> received trailers", static_cast<const void *> ( this ) );
+      } );
+    else
+      assert ( 0 );
+  }, std::move ( msg ) );
 }
 
 
