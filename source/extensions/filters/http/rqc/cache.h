@@ -9,13 +9,18 @@
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
+struct  Pending
+{
+  std::vector<std::function<void ()> >  m_Waiting;
+};
+
 struct  Cache
 {
   mutable std::mutex  m_Mtx;
-  std::unordered_map<std::string, std::size_t>  m_Elements;
+  std::unordered_map<std::string, Pending>  m_Elements;
   auto  insert_or ( const std::string & k,
-                    const std::function<std::size_t ()> & lazy,
-                    const std::function<void (std::size_t &)> & modify ) -> bool
+                    const std::function<Pending ()> & lazy,
+                    const std::function<void (Pending &)> & modify ) -> bool
   {
     auto  l = std::unique_lock { m_Mtx };
     auto  i = m_Elements . find ( k );
@@ -30,7 +35,7 @@ struct  Cache
       return  false;
     }
   }
-  auto  remove ( const std::string & k ) -> std::optional<std::size_t>
+  auto  remove ( const std::string & k ) -> std::optional<Pending>
   {
     auto  l = std::unique_lock { m_Mtx };
     auto  i = m_Elements . find ( k );

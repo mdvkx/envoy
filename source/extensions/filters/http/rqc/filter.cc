@@ -23,10 +23,13 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   ENVOY_LOG ( debug, "request: m_Key = \"{}\"", m_Key );
   std::size_t  q = 0;
-  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  std::size_t { 0 }; }, [ &q ] ( std::size_t & c ) -> void
+  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &q ] ( Pending & p ) -> void
   {
-    q = c;  // dirty hack, temporary
-    c += 1;
+    q = p . m_Waiting . size ();  // dirty hack, temporary
+    p . m_Waiting . emplace_back ( [ this ] ( ) mutable -> void
+    {
+      ENVOY_LOG ( debug, "(subscriber) received a message" );
+    } );
   } ) )
   {
     m_State = State::Publisher;
@@ -37,7 +40,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   {
     m_State = State::Subscriber;
     ENVOY_LOG ( debug, "request: request for key \"{}\" already pending with {} subscribers in queue excluding myself", m_Key, q );
-    return  Http::FilterHeadersStatus::StopIteration;
+    return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
   }
 }
 
@@ -54,6 +57,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       if ( auto  x = m_Cache -> remove ( m_Key );  x . has_value () )
       {
         ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, *x );
+
       }
       else
       {

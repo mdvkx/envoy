@@ -28,7 +28,7 @@ enum struct  State
   */
 };
 
-struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
+struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
   std::shared_ptr<Cache>  m_Cache;
@@ -46,6 +46,15 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
+
+  auto  post           ( std::invocable<> auto && x ) -> void
+  {
+    this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), x = std::move ( x ) ] ( ) mutable -> void
+    {
+      if ( auto  p = wp . lock () )
+        (std::move ( x )) ();
+    } );
+  }
 };
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::rqc::Config>
