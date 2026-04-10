@@ -31,13 +31,14 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   {
     m_State = State::Publisher;
     ENVOY_LOG ( debug, "request: creating new pending request for key \"{}\"", m_Key );
+    return  Http::FilterHeadersStatus::Continue;
   }
   else
   {
     m_State = State::Subscriber;
     ENVOY_LOG ( debug, "request: request for key \"{}\" already pending with {} subscribers in queue excluding myself", m_Key, q );
+    return  Http::FilterHeadersStatus::StopIteration;
   }
-  return  Http::FilterHeadersStatus::Continue;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
