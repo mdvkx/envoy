@@ -20,7 +20,9 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG ( debug, "request: headers: {},{},{}, is_last: {}", headers . getMethodValue (), headers . getHostValue (), headers . getPathValue (), is_last );
-  assert ( 0 );
+  m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
+  ENVOY_LOG ( debug, "request: m_Key = \"{}\"", m_Key );
+  return  Http::FilterHeadersStatus::Continue;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
@@ -30,7 +32,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterHeadersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -45,7 +47,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -59,7 +61,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   switch ( m_State )
   {
     case  State::Unknown:
-      assert ( 0 );
+      return  Http::FilterTrailersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );

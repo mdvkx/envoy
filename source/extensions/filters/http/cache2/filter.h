@@ -51,6 +51,9 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   {
   }
 
+  auto  post           ( std::invocable<> auto && f ) -> void;
+  auto  commit         ( ) -> void;
+
   auto  onDestroy ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
@@ -60,9 +63,6 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
-
-  auto  commit         ( ) -> void;
-  auto  post           ( std::invocable<> auto && f ) -> void;
 };
 
 auto  Filter::post ( std::invocable<> auto && f ) -> void
