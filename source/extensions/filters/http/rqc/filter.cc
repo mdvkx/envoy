@@ -10,10 +10,12 @@ namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 auto  Filter::onDestroy ( ) -> void
 {
+  ENVOY_LOG ( debug, "on destroy ()" );
 }
 
 auto  Filter::onStreamComplete ( ) -> void
 {
+  ENVOY_LOG ( debug, "on steam complete ()" );
 }
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
@@ -26,9 +28,30 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &q ] ( Pending & p ) -> void
   {
     q = p . m_Waiting . size ();  // dirty hack, temporary
-    p . m_Waiting . emplace_back ( [ this ] ( ) mutable -> void
+    p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) mutable -> void
     {
       ENVOY_LOG ( debug, "(subscriber) received a message" );
+      std::visit ( [ ] ( auto && x )
+      {
+        using  T = std::remove_cvref_t<decltype ( x )>;
+        if      constexpr ( std::is_same_v<T, MsgHeaders> )
+          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          {
+            this -> decoder_callbacks_ -> encodeHeaders   ( std::move ( x -> m_Headers ), x -> m_IsLast );
+          } );
+        else if constexpr ( std::is_same_v<T, MsgBody> )
+          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          {
+            this -> decoder_callbacks_ -> encodeBody      ( *x -> m_Body, x -> m_IsLast );
+          } );
+        else if constexpr ( std::is_same_v<T, MsgTrailers> )
+          this -> post ( [ x = std::move ( x ) ] ( ) mutable -> void
+          {
+            this -> decoder_callbacks_ -> encodeTrailers  ( std::move ( x -> m_Trailers ) );
+          } );
+        else
+          assert ( 0 );
+      }, std::move ( msg ) );
     } );
   } ) )
   {
@@ -59,7 +82,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       {
         ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, m_Pending -> m_Waiting . size () );
         for ( auto & w : m_Pending -> m_Waiting )
-          w ();
+          w ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
       }
       else
       {
@@ -87,7 +110,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       break;
     case  State::Publisher:
       for ( auto & w : m_Pending -> m_Waiting )
-        w ();
+        w ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( data ), is_last } );
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
@@ -109,7 +132,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       break;
     case  State::Publisher:
       for ( auto & w : m_Pending -> m_Waiting )
-        w ();
+        w ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:

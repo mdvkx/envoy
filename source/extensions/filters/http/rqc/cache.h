@@ -9,9 +9,28 @@
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
+struct  MsgHeaders
+{
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  bool  m_IsLast;
+};
+
+struct  MsgBody
+{
+  std::unique_ptr<Buffer::Instance>  m_Body;
+  bool  m_IsLast;
+};
+
+struct  MsgTrailers
+{
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
+};
+
+using  Msg = std::variant<MsgHeaders, MsgBody, MsgTrailers>;
+
 struct  Pending
 {
-  std::vector<std::function<void ()> >  m_Waiting;
+  std::vector<std::function<void (Msg &&)> >  m_Waiting;
 };
 
 struct  Cache
