@@ -30,24 +30,24 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
     q = p . m_Waiting . size ();  // dirty hack, temporary
     p . m_Waiting . emplace_back ( [ this ] ( Msg && msg ) mutable -> void
     {
-      ENVOY_LOG ( debug, "(subscriber) received a message" );
+      ENVOY_LOG ( debug, "(subscriber {}) received a message", this );
       std::visit ( [ this ] ( auto && x )
       {
         using  T = std::remove_cvref_t<decltype ( x )>;
         if      constexpr ( std::is_same_v<T, MsgHeaders> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeHeaders   ( std::move ( x . m_Headers ), x . m_IsLast, "details" );
+            ENVOY_LOG ( debug, "(subscriber {}) headers received", this );
           } );
         else if constexpr ( std::is_same_v<T, MsgBody> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeData      ( *x . m_Body, x . m_IsLast );
+            ENVOY_LOG ( debug, "(subscriber {}) body received", this );
           } );
         else if constexpr ( std::is_same_v<T, MsgTrailers> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeTrailers  ( std::move ( x . m_Trailers ) );
+            ENVOY_LOG ( debug, "(subscriber {}) trailers received", this );
           } );
         else
           assert ( 0 );
@@ -83,7 +83,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       ENVOY_LOG ( debug, "response: removing \"{}\" from pending, there are {} subscribers attached.", m_Key, m_Pending -> m_Waiting . size () );
       for ( auto & w : m_Pending -> m_Waiting )
       {
-        w ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
+        w ( MsgHeaders {} );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -108,7 +108,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
     case  State::Publisher:
       assert ( m_Pending . has_value () );
       for ( auto & w : m_Pending -> m_Waiting )
-        w ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( data ), is_last } );
+        w ( MsgBody {} );
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
@@ -131,7 +131,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
     case  State::Publisher:
       assert ( m_Pending . has_value () );
       for ( auto & w : m_Pending -> m_Waiting )
-        w ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
+        w ( MsgTrailers {} );
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
