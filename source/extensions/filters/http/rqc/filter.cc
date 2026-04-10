@@ -37,17 +37,17 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
         if      constexpr ( std::is_same_v<T, MsgHeaders> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeHeaders   ( std::move ( x -> m_Headers ), x -> m_IsLast );
+            this -> decoder_callbacks_ -> encodeHeaders   ( std::move ( x . m_Headers ), x . m_IsLast );
           } );
         else if constexpr ( std::is_same_v<T, MsgBody> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeData      ( *x -> m_Body, x -> m_IsLast );
+            this -> decoder_callbacks_ -> encodeData      ( *x . m_Body, x . m_IsLast );
           } );
         else if constexpr ( std::is_same_v<T, MsgTrailers> )
           this -> post ( [ this, x = std::move ( x ) ] ( ) mutable -> void
           {
-            this -> decoder_callbacks_ -> encodeTrailers  ( std::move ( x -> m_Trailers ) );
+            this -> decoder_callbacks_ -> encodeTrailers  ( std::move ( x . m_Trailers ) );
           } );
         else
           assert ( 0 );
