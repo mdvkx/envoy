@@ -23,7 +23,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   ENVOY_LOG ( debug, "request: m_Key = \"{}\"", m_Key );
   std::size_t  q = 0;
-  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  std::size_t { 0 }; }, [ &q ] ( std::size_t  c ) mutable -> void
+  if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  std::size_t { 0 }; }, [ &q ] ( std::size_t & c ) -> void
   {
     q = c;  // dirty hack, temporary
     c += 1;
