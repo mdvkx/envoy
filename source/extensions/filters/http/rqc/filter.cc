@@ -51,7 +51,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                          static_cast<const void *> ( this ), m_Key, m_Pending -> m_Waiting . size () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
-        send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last, "details" } );
+        send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -132,7 +132,7 @@ auto  Filter::msg ( Msg && msg ) -> void
       this -> post ( [ this, msg = std::move ( msg ) ] ( ) mutable -> void
       {
         ENVOY_LOG ( debug, "<{}> received headers",  static_cast<const void *> ( this ) );
-        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( msg . m_Headers ), msg . m_IsLast );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( msg . m_Headers ), msg . m_IsLast, "details" );
       } );
     }
     else if constexpr ( std::is_same_v<T, MsgBody> )
