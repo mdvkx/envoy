@@ -19,19 +19,15 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
   "501",
 };
 
-auto  Filter::onDestroy ( ) -> void
+auto  Filter::commit  ( ) -> void
 {
-  ENVOY_LOG ( debug, "on destroy ()" );
-  m_State = State::Destroyed;
-}
-
-auto  Filter::onStreamComplete ( ) -> void
-{
+  // it's a bit unfortunate, i think if there's a cache miss and the response is stalled, then lots of clients can get the same response (literally, if they're coalesced) and then all of them are going to hammer the cache trying to insert an identical entry.
+  m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
 }
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "decode headers = {}, is last = {}", headers, is_last );
+  ENVOY_LOG ( debug, "decoding: headers = [host=\"{}\", path=\"{}\", is last = {}", headers . getHostValue (), headers . getPathValue (), is_last );
 
   using  namespace std::literals;
 
@@ -85,7 +81,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "encode headers = {}, is last = {}", headers, is_last );
+  ENVOY_LOG ( debug, "encoding: headers = [status={}, host=\"{}\", path=\"{}\", ...]; is last = {}", headers . getStatusValue (), headers . getHostValue (), headers . getPathValue (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -120,7 +116,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
 
 auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "encode data = \"{}\", is last = {}", data . toString (), is_last );
+  ENVOY_LOG ( debug, "encoding: {} bytes of data; is last = {}", data . length (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -146,7 +142,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
-  ENVOY_LOG ( debug, "encode trailers = {}", trailers );
+  ENVOY_LOG ( debug, "encoding: trailers" );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -169,10 +165,15 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   }
 }
 
-auto  Filter::commit  ( ) -> void
+auto  Filter::onDestroy ( ) -> void
 {
-  // it's a bit unfortunate, i think if there's a cache miss and the response is stalled, then lots of clients can get the same response (literally, if they're coalesced) and then all of them are going to hammer the cache trying to insert an identical entry.
-  m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
+  ENVOY_LOG ( debug, "on destroy" );
+  m_State = State::Destroyed;
+}
+
+auto  Filter::onStreamComplete ( ) -> void
+{
+  ENVOY_LOG ( debug, "on stream complete" );
 }
 
 
