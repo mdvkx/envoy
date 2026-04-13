@@ -20,6 +20,8 @@ struct  MsgHeaders
 
 struct  MsgBody
 {
+  std::unique_ptr<Buffer::Instance>  m_Body;
+  bool  m_IsLast;
 };
 
 struct  MsgTrailers
