@@ -83,7 +83,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterDataStatus::StopIterationAndWatermark;
+      return  Http::FilterDataStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -102,7 +102,9 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
     case  State::Publisher:
       assert ( m_Pending . has_value () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
+      {
         send_msg ( MsgTrailers {} );
+      }
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
