@@ -11,8 +11,8 @@ namespace  Envoy::Extensions::HttpFilters::Rqc {
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "<{}> request: headers: [{}], is_last: {}",
-                      static_cast<const void *> ( this ), headers, is_last );
+  ENVOY_LOG ( debug, "<{}> decoding: headers = [host=\"{}\", path=\"{}\", ...], is last = {}",
+                      static_cast<const void *> ( this ), headers . getHostValue (), headers . getPathValue (), is_last );
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   ENVOY_LOG ( debug, "<{}> request: m_Key = \"{}\"", static_cast<const void *> ( this ), m_Key );
   std::size_t  cnt = 0;
@@ -37,7 +37,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "<{}> response: headers: [{}], is_last: {}", static_cast<const void *> ( this ), headers, is_last );
+  ENVOY_LOG ( debug, "<{}> encoding: headers: [{}, ...], is_last: {}", static_cast<const void *> ( this ), headers . getStatusValue (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -68,8 +68,8 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
 auto  Filter::encodeData     ( Buffer::Instance & data,
                                bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "<{}> response: data: \"{}\", is_last: {}",
-                     static_cast<const void *> ( this ), data . toString (), is_last );
+  ENVOY_LOG ( debug, "<{}> encoding: {} bytes of data; is_last: {}",
+                     static_cast<const void *> ( this ), data . length (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -97,7 +97,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
-  ENVOY_LOG ( debug, "<{}> response: trailers: [{}]", static_cast<const void *> ( this ), trailers );
+  ENVOY_LOG ( debug, "<{}> encoding: trailers", static_cast<const void *> ( this ) );
   switch ( m_State )
   {
     case  State::Unknown:
@@ -123,12 +123,12 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
 auto  Filter::onStreamComplete ( ) -> void
 {
-  ENVOY_LOG ( debug, "<{}> stream complete ()", static_cast<const void *> ( this ) );
+  ENVOY_LOG ( debug, "<{}> on stream complete", static_cast<const void *> ( this ) );
 }
 
 auto  Filter::onDestroy ( ) -> void
 {
-  ENVOY_LOG ( debug, "<{}> on destroy ()", static_cast<const void *> ( this ) );
+  ENVOY_LOG ( debug, "<{}> on destroy", static_cast<const void *> ( this ) );
 }
 
 auto  Filter::msg ( Msg && msg ) -> void
