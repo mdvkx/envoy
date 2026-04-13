@@ -86,7 +86,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       break;
     case  State::Subscriber:
       if ( ! is_last )
-        return  Http::FilterDataStatus::StopIterationAndBuffer;
+        return  Http::FilterDataStatus::StopIterationNoBuffer;
       return  Http::FilterDataStatus::Continue;
       break;
     default:
