@@ -78,7 +78,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       assert ( m_Pending . has_value () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
-        send_msg ( MsgBody { std::make_unique<Buffer::Instance> ( Buffer::OwnedImpl { data } ), is_last } );
+        send_msg ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( data ), is_last } );
       }
       return  Http::FilterDataStatus::Continue;
       break;
