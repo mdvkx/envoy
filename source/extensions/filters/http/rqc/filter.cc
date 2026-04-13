@@ -77,7 +77,9 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
     case  State::Publisher:
       assert ( m_Pending . has_value () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
+      {
         send_msg ( MsgBody { std::make_unique<Buffer::Instance> ( Buffer::OwnedImpl { data } ), is_last } );
+      }
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
@@ -137,7 +139,7 @@ auto  Filter::msg ( Msg && msg ) -> void
     }
     else if constexpr ( std::is_same_v<T, MsgBody> )
     {
-      this -> post ( [ this ] ( ) mutable -> void
+      this -> post ( [ this, msg = std::move ( msg ) ] ( ) mutable -> void
       {
         ENVOY_LOG ( debug, "<{}> received body",     static_cast<const void *> ( this ) );
         this -> decoder_callbacks_ -> encodeData    ( *msg . m_Body, msg . m_IsLast );
