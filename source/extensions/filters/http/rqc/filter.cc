@@ -83,7 +83,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterDataStatus::StopIteration;
+      return  Http::FilterDataStatus::StopIterationAndWatermark;
       break;
     default:
       assert ( 0 && "unreachable" );
