@@ -56,7 +56,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterHeadersStatus::Continue;
+      return  Http::FilterHeadersStatus::StopIteration;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -83,7 +83,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterDataStatus::Continue;
+      return  Http::FilterDataStatus::StopIteration;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -106,7 +106,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterTrailersStatus::Continue;
+      return  Http::FilterTrailersStatus::StopIteration;
       break;
     default:
       assert ( 0 && "unreachable" );
