@@ -43,7 +43,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
     || ! is_last  // requests with body/trailers aren't cacheable
   )
   {
-    m_State = State::N_A;
+    m_State = State::NotCacheable;
     return  Http::FilterHeadersStatus::Continue;
   }
 
@@ -91,7 +91,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::N_A:
+    case  State::NotCacheable:
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Hit:
@@ -103,7 +103,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
         // || no cache-control, etc ...
       )
       {
-        m_State = State::N_A;
+        m_State = State::NotCacheable;
         return  Http::FilterHeadersStatus::Continue;
       }
       m_Headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers );
@@ -126,7 +126,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::N_A:
+    case  State::NotCacheable:
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Hit:
@@ -152,7 +152,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
     case  State::Unknown:
       assert ( 0 );
       break;
-    case  State::N_A:
+    case  State::NotCacheable:
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Hit:

@@ -24,13 +24,10 @@ namespace  Envoy::Extensions::HttpFilters::Cache2 {
 enum struct  State
 {
   Unknown,
-
-  N_A,  // request/response not cacheable, or otherwise n/a
-
-  Hit,
-  Miss,
-
   Destroyed,
+  NotCacheable,
+  Miss,
+  Hit,
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
