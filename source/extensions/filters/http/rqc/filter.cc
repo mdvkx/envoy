@@ -85,6 +85,8 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Subscriber:
+      if ( ! is_last )
+        return  Http::FilterDataStatus::StopIterationAndBuffer;
       return  Http::FilterDataStatus::Continue;
       break;
     default:
@@ -111,7 +113,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       return  Http::FilterTrailersStatus::Continue;
       break;
     case  State::Subscriber:
-      return  Http::FilterTrailersStatus::StopIteration;
+      return  Http::FilterTrailersStatus::Continue;
       break;
     default:
       assert ( 0 && "unreachable" );
