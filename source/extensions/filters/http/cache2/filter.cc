@@ -81,7 +81,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "encoding: headers = [status={}, host=\"{}\", path=\"{}\", ...]; is last = {}", headers . getStatusValue (), headers . getHostValue (), headers . getPathValue (), is_last );
+  ENVOY_LOG ( debug, "encoding: headers = [status={}, ...]; is last = {}", headers . getStatusValue (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
