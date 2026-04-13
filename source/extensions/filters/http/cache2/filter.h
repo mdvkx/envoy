@@ -33,7 +33,7 @@ enum struct  State
   Destroyed,
 };
 
-struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::cache_filter>, public std::enable_shared_from_this<Filter>
+struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
   State  m_State = State::Unknown;
 
