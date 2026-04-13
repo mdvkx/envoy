@@ -51,6 +51,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                          static_cast<const void *> ( this ), m_Key, m_Pending -> m_Waiting . size () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
+        ENVOY_LOG ( debug, "<{}> sending headers.", static_cast<const void *> ( this ) );
         send_msg ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
       }
       return  Http::FilterHeadersStatus::Continue;
@@ -78,6 +79,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       assert ( m_Pending . has_value () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
+        ENVOY_LOG ( debug, "<{}> sending body.", static_cast<const void *> ( this ) );
         send_msg ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( data ), is_last } );
       }
       return  Http::FilterDataStatus::Continue;
@@ -103,6 +105,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
       assert ( m_Pending . has_value () );
       for ( auto & send_msg : m_Pending -> m_Waiting )
       {
+        ENVOY_LOG ( debug, "<{}> sending trailers.", static_cast<const void *> ( this ) );
         send_msg ( MsgTrailers {} );
       }
       return  Http::FilterTrailersStatus::Continue;
