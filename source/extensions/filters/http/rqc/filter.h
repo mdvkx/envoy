@@ -11,11 +11,18 @@
 #include "source/extensions/filters/http/rqc/config.pb.h"
 #include "source/extensions/filters/http/rqc/config.pb.validate.h"
 
+#include <concepts>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
 
 namespace  Envoy::Extensions::HttpFilters::Rqc {
 
 
-enum struct  State
+enum struct  State : std::uint32_t
 {
   Unknown,
 
