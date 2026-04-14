@@ -126,6 +126,11 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   }
 }
 
+auto  Filter::encodeComplete ( ) -> void
+{
+  ENVOY_LOG ( debug, "state = {}, encode complete", to_underlying ( m_State ) );
+}
+
 auto  Filter::onStreamComplete ( ) -> void
 {
   ENVOY_LOG ( debug, "state = {}, on stream complete", to_underlying ( m_State ) );
