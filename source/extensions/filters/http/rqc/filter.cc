@@ -95,8 +95,8 @@ auto  Filter::encodeData     ( Buffer::Instance & data,
       break;
     case  State::Subscriber:
       if ( is_last )
-        this -> decoder_callbacks_ -> addEncodedTrailers ();
-      return  Http::FilterDataStatus::Continue;
+        this -> encoder_callbacks_ -> addEncodedTrailers ();
+      return  Http::FilterDataStatus::StopIterationNoBuffer;
       break;
     default:
       assert ( 0 && "unreachable" );
@@ -160,7 +160,7 @@ auto  Filter::msg ( Msg && msg ) -> void
     {
       this -> post ( [ this, msg = std::move ( msg ) ] ( ) mutable -> void
       {
-        this -> decoder_callbacks_ -> injectEncodedDataToFilterChain    ( *msg . m_Body, msg . m_IsLast );
+        this -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *msg . m_Body, msg . m_IsLast );
       } );
     }
     else if constexpr ( std::is_same_v<T, MsgTrailers> )
