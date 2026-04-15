@@ -41,11 +41,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
   std::optional<Pending>  m_Pending;
-  Filter ( std::shared_ptr<Cache>  cache )
-    : m_Cache { cache }
-  {
-  }
-  auto  msg            ( Msg && msg ) -> void;
+  Filter ( std::shared_ptr<Cache>  cache );
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
                          bool  is_last ) -> Http::FilterHeadersStatus override;
   auto  encodeHeaders  ( Http::ResponseHeaderMap & headers,
@@ -56,14 +52,6 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeComplete ( ) -> void override;
   auto  onStreamComplete ( ) -> void override;
   auto  onDestroy      ( ) -> void override;
-  auto  post           ( std::invocable<> auto && x ) -> void
-  {
-    this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), x = std::move ( x ) ] ( ) mutable -> void
-    {
-      if ( auto  p = wp . lock () )
-        x ();
-    } );
-  }
 };
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::rqc::Config>
