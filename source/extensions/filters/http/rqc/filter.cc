@@ -50,3 +50,10 @@ auto  Filter::onDestroy      ( ) -> void
 }
 
 }
+
+namespace  Envoy::Extensions::HttpFilters::Rqc
+{
+
+REGISTER_FACTORY ( Factory, Server::Configuration::NamedHttpFilterConfigFactory );
+
+}
