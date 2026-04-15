@@ -21,7 +21,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG ( debug, "decoding: state = {}, headers = [host=\"{}\", path=\"{}\", ...], is_last = {}",
-                      to_underlying ( m_State ), headers . getHostValue (), headers . getPathValue (), is_last );
+                     to_underlying ( m_State ), headers . getHostValue (), headers . getPathValue (), is_last );
   m_Key = absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
   std::size_t  cnt = 0;
   if ( m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Pending {}; }, [ this, &cnt ] ( Pending & p ) -> void
@@ -41,14 +41,15 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   {
     m_State = State::Subscriber;
     ENVOY_LOG ( debug, "request: subscriber #{} for key \"{}\"", cnt, m_Key );
-    return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
+    return  Http::FilterHeadersStatus::StopIteration;
   }
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "encoding: state = {}, headers = [{}, ...], is_last = {}", to_underlying ( m_State ), headers . getStatusValue (), is_last );
+  ENVOY_LOG ( debug, "encoding: state = {}, headers = [{}, ...], is_last = {}",
+                     to_underlying ( m_State ), headers . getStatusValue (), is_last );
   switch ( m_State )
   {
     case  State::Unknown:
