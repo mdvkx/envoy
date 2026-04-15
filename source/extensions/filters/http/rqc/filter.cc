@@ -17,13 +17,13 @@ namespace  Envoy::Extensions::HttpFilters::Rqc
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  return  Http::FilterHeaderStatus::Continue;
+  return  Http::FilterHeadersStatus::Continue;
 }
 
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  return  Http::FilterHeaderStatus::Continue;
+  return  Http::FilterHeadersStatus::Continue;
 }
 
 auto  Filter::encodeData     ( Buffer::Instance & data,
