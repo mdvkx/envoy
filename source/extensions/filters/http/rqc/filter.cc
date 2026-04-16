@@ -156,23 +156,24 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
     auto  p = wp . lock ();
     if ( ! p )
       return;
-    std::visit ( [ p ] ( const auto & x ) -> void
+    assert ( p . get () == this );
+    std::visit ( [ this ] ( const auto & x ) -> void
     {
-      using  X = std::remove_cvref_t<decltype ( x )> ;
+      using  X = std::remove_cvref_t<decltype ( x )>;
       if constexpr ( std::is_same_v<X, MsgHeaders> )
       {
         auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
-        p -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
       {
         auto  trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *x . m_Trailers );
-        p -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
+        this -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
       }
       else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
-        p -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
+        this -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
       }
       else
         assert ( 0 );
