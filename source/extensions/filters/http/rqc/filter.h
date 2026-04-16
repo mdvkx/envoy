@@ -24,24 +24,29 @@ namespace  Envoy::Extensions::HttpFilters::Rqc
 enum struct  State : std::uint32_t
 {
   Initial,
-
-  // i'm responsible for sending the request upstream and streaming the response for all subscribers
+  // responsible for sending the request upstream and streaming the response for all subscribers
   Publisher,  // 1st
-  // i'm waiting for the response to be published
+  // waiting for the response to be published
   Subscriber, // 2nd, 3rd, 4th, ...
-  /*
-  Destroyed,
-  */
 };
+
+struct  Filter;
 
 struct  Ticket
 {
+  std::vector<std::shared_ptr<Filter> >  m_Waiting;
 };
 
 struct  Cache
 {
-  std::mutex  m_Mtx;
+  mutable std::mutex  m_Mtx;
   std::unordered_map<std::string, Ticket>  m_Requests;
+  [[nodiscard]]
+  auto  size ( ) const -> std::size_t
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    return  m_Requests . size ();
+  }
   auto  insert ( const std::string & k,
                  const std::function<Ticket ()> & v ) -> bool
   {
@@ -51,6 +56,39 @@ struct  Cache
       return  false;
     m_Requests . emplace_hint ( i, k, v () );
     return  true;
+  }
+  auto  insert_or ( const std::string & k,
+                    const std::function<Ticket ()> & v,
+                    const std::function<void (Ticket &)> & f ) -> bool
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    auto  i = m_Requests . find ( k );
+    if ( i != m_Requests . end () )
+    {
+      f ( i -> second );
+      return  false;
+    }
+    else
+    {
+      m_Requests . emplace_hint ( i, k, v () );
+      return  true;
+    }
+  }
+  auto  lookup ( const std::string & k,
+                 const std::function<void (const Ticket &)> & f ) const -> bool
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    auto  i = m_Requests . find ( k );
+    if ( i == m_Requests . end () )
+      return  false;
+    f ( i -> second );
+    return  true;
+  }
+  [[nodiscard]]
+  auto  contains ( const std::string & k ) const -> bool
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    return  m_Requests . contains ( k );
   }
   auto  remove ( const std::string & k ) -> std::optional<Ticket>
   {
@@ -70,7 +108,6 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
-  bool  m_First = false;
 
   State  m_State = State::Initial;
 

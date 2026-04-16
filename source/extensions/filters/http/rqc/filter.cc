@@ -6,6 +6,15 @@
 #include <cassert>
 #include <type_traits>
 
+template <typename  Enum_>
+[[nodiscard]]
+constexpr auto  to_underlying ( Enum_  e ) noexcept -> std::underlying_type_t<Enum_>
+{
+  static_assert ( std::is_enum_v<Enum_>,
+                  "e must be a complete enumeration type" );
+  return  static_cast<std::underlying_type_t<Enum_> >  ( e );
+}
+
 namespace  Envoy::Extensions::HttpFilters::Rqc
 {
 
@@ -13,12 +22,11 @@ auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG (
     debug,
-    "@@@ destroy  // stream id = {:08x}",
+    "@@@ destroy  // state = {}, stream id = {:08x}",
+    to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
 
-  if ( m_First )
-    m_Cache -> remove ( m_Key );
 }
 
 auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
@@ -26,15 +34,25 @@ auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
 {
   ENVOY_LOG (
     debug,
-    "@@@ decoding headers  // stream id = {:08x}",
+    "@@@ decoding headers  // state = {}, stream id = {:08x}",
+    to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
 
   m_Key = Self::derive_key ( headers );
-  m_First = m_Cache -> insert ( m_Key, [ ] ( ) { return  Ticket {}; } );
-  if ( ! m_First )
+  if ( ! m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Ticket {}; }, [ this ] ( Ticket & x ) -> void
+  {
+    x . emplace_back ( this -> shared_from_this () );
+  } )
+  {
+    m_State = State::Subscriber;
     return  Http::FilterHeadersStatus::StopIteration;
-  return  Http::FilterHeadersStatus::Continue;
+  }
+  else
+  {
+    m_State = State::Publisher;
+    return  Http::FilterHeadersStatus::Continue;
+  }
 }
 
 auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
@@ -42,22 +60,46 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
 {
   ENVOY_LOG (
     debug,
-    "@@@ encoding headers  // stream id = {:08x}",
+    "@@@ encoding headers  // state = {}, stream id = {:08x}",
+    to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
 
-  return  Http::FilterHeadersStatus::Continue;
+  switch ( m_State )
+  {
+    case  State::Publisher:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterHeadersStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
 }
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
   ENVOY_LOG (
     debug,
-    "@@@ encoding trailers  // stream id = {:08x}",
+    "@@@ encoding trailers  // state = {}, stream id = {:08x}",
+    to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
 
-  return  Http::FilterTrailersStatus::Continue;
+  switch ( m_State )
+  {
+    case  State::Publisher:
+      return  Http::FilterTrailersStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterTrailersStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
 }
 
 auto  Filter::encodeData    ( Buffer::Instance & body,
@@ -65,12 +107,24 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 {
   ENVOY_LOG (
     debug,
-    "@@@ encoding {} bytes body  // stream id = {:08x}",
+    "@@@ encoding {} bytes body  // state = {}, stream id = {:08x}",
     body . length (),
+    to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
 
-  return  Http::FilterDataStatus::Continue;
+  switch ( m_State )
+  {
+    case  State::Publisher:
+      return  Http::FilterDataStatus::Continue;
+      break;
+    case  State::Subscriber:
+      return  Http::FilterDataStatus::Continue;
+      break;
+    default:
+      assert ( 0 && "unreachable!" );
+      break;
+  }
 }
 
 auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
