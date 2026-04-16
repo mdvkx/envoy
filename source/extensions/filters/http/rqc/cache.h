@@ -9,6 +9,10 @@
 #include <unordered_map>
 #include <utility>
 
+
+namespace  Envoy::Extensions::HttpFilters::Rqc
+{
+
 struct  Filter;
 
 struct  Ticket
@@ -98,4 +102,6 @@ auto  Cache::remove ( const std::string & k ) -> std::optional<Ticket>
   auto  x = std::move ( i -> second );
   m_Requests . erase ( i );
   return  x;
+}
+
 }
