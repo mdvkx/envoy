@@ -156,7 +156,7 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
     auto  p = wp . lock ();
     if ( ! p )
       return;
-    assert ( p . get () == this );
+    assert ( p . get () == this );  // p is just a witness, really
     std::visit ( [ this ] ( const auto & x ) -> void
     {
       using  X = std::remove_cvref_t<decltype ( x )>;
