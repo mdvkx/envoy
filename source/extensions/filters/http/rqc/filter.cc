@@ -43,7 +43,7 @@ auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
   if ( ! m_Cache -> insert_or ( m_Key, [ ] ( ) { return  Ticket {}; }, [ this ] ( Ticket & x ) -> void
   {
     x . m_Waiting . emplace_back ( this -> shared_from_this () );
-  } )
+  } ) )
   {
     m_State = State::Subscriber;
     return  Http::FilterHeadersStatus::StopIteration;
