@@ -30,6 +30,23 @@ enum struct  State : std::uint32_t
   Subscriber, // 2nd, 3rd, 4th, ...
 };
 
+struct  MsgHeaders
+{
+  //std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  //bool  m_Last;
+};
+struct  MsgTrailers
+{
+  //std::unique_ptr<Http::ResponseTrailerMap>  m_Tailers;
+};
+struct  MsgBody
+{
+  //std::unique_ptr<Buffer::Instance>  m_Body;
+  //bool  m_Last;
+};
+
+using  Msg = std::variant<MsgHeaders, MsgTrailers, MsgBody>;
+
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
   using  Self = Filter;
@@ -60,6 +77,8 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
                         bool  is_last ) -> Http::FilterDataStatus override;
 
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
+
+  auto  receive_msg ( std::shared_ptr<Msg>  msg ) -> void;
 
 };
 

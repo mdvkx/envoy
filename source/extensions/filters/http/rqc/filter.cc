@@ -11,7 +11,7 @@ template <typename  Enum_>
 constexpr auto  to_underlying ( Enum_  e ) noexcept -> std::underlying_type_t<Enum_>
 {
   static_assert ( std::is_enum_v<Enum_>,
-                  "e must be a complete enumeration type" );
+                  "the argument e must be a complete enumeration type" );
   return  static_cast<std::underlying_type_t<Enum_> >  ( e );
 }
 
@@ -21,7 +21,7 @@ namespace  Envoy::Extensions::HttpFilters::Rqc
 auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG (
-    debug,
+    trace,
     "@@@ destroy  // state = {}, stream id = {:08x}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
@@ -33,7 +33,7 @@ auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
                               bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG (
-    debug,
+    trace,
     "@@@ decoding headers  // state = {}, stream id = {:08x}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
@@ -59,7 +59,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
                               bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG (
-    debug,
+    trace,
     "@@@ encoding headers  // state = {}, stream id = {:08x}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
@@ -72,6 +72,9 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
            x . has_value () )
       {
         m_Waiting = std::move ( x -> m_Waiting );
+        auto  msg = std::make_shared<Msg> ( MsgHeaders { } );
+        for ( auto  w : m_Waiting )
+          w -> receive_msg ( msg );
       }
       else
       {
@@ -91,7 +94,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
   ENVOY_LOG (
-    debug,
+    trace,
     "@@@ encoding trailers  // state = {}, stream id = {:08x}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
@@ -115,7 +118,7 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
                               bool  is_last ) -> Http::FilterDataStatus
 {
   ENVOY_LOG (
-    debug,
+    trace,
     "@@@ encoding {} bytes body  // state = {}, stream id = {:08x}",
     body . length (),
     to_underlying ( m_State ),
@@ -139,6 +142,22 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
 {
   return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
+}
+
+auto  Filter::receive_msg ( std::shared_ptr<Msg>  msg ) -> void
+{
+  std::visit ( [ this ] ( const auto & x ) -> void
+  {
+    using  X = std::remove_cvref_t<decltype ( x )> ;
+    if constexpr ( std::is_same_v<X, MsgHeaders> )
+      assert ( 0 );
+    else if constexpr ( std::is_same_v<X, MsgTrailers> )
+      assert ( 0 );
+    else if constexpr ( std::is_same_v<X, MsgBody> )
+      assert ( 0 );
+    else
+      assert ( 0 );
+  }, *msg );
 }
 
 
