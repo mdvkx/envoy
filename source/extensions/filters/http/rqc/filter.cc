@@ -22,7 +22,7 @@ auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG (
     trace,
-    "@@@ destroy  // state = {}, stream id = {:08x}",
+    "@@@ destroy  // state = {}, stream id = {}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
@@ -34,7 +34,7 @@ auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
 {
   ENVOY_LOG (
     trace,
-    "@@@ decoding headers  // state = {}, stream id = {:08x}",
+    "@@@ decoding headers  // state = {}, stream id = {}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
@@ -60,7 +60,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
 {
   ENVOY_LOG (
     trace,
-    "@@@ encoding headers  // state = {}, stream id = {:08x}",
+    "@@@ encoding headers  // state = {}, stream id = {}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
@@ -95,7 +95,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 {
   ENVOY_LOG (
     trace,
-    "@@@ encoding trailers  // state = {}, stream id = {:08x}",
+    "@@@ encoding trailers  // state = {}, stream id = {}",
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
   );
@@ -119,7 +119,7 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 {
   ENVOY_LOG (
     trace,
-    "@@@ encoding {} bytes body  // state = {}, stream id = {:08x}",
+    "@@@ encoding {} bytes body  // state = {}, stream id = {}",
     body . length (),
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()
@@ -170,7 +170,7 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
       else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
-        this -> decoder_callbacks_ -> encodeData    ( *body, x . m_Last );
+        this -> encoder_callbacks_ -> addEncodedData    ( *body, /* streaming: */ true );
       }
       else
         assert ( 0 );
