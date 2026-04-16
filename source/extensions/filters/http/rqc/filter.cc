@@ -158,7 +158,7 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
       if constexpr ( std::is_same_v<X, MsgHeaders> )
       {
         auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
-        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
         assert ( 0 );
