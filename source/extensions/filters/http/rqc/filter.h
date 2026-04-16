@@ -37,7 +37,7 @@ struct  MsgHeaders
 };
 struct  MsgTrailers
 {
-  //std::unique_ptr<Http::ResponseTrailerMap>  m_Tailers;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers;
 };
 struct  MsgBody
 {

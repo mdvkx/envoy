@@ -103,8 +103,13 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   switch ( m_State )
   {
     case  State::Publisher:
+    {
+      auto  msg = std::make_shared<const Msg> ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
+      for ( auto  w : m_Waiting )
+        w -> receive_msg ( msg );
       return  Http::FilterTrailersStatus::Continue;
       break;
+    }
     case  State::Subscriber:
       return  Http::FilterTrailersStatus::Continue;
       break;
@@ -151,29 +156,28 @@ auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::stri
 
 auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
 {
-  this -> decoder_callbacks_ -> dispatcher () . post ( [ this, msg, wp = this -> weak_from_this () ] ( ) -> void
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ msg, wp = this -> weak_from_this () ] ( ) -> void
   {
     auto  p = wp . lock ();
     if ( ! p )
       return;
-    assert ( p . get () == this );  // p is just a witness, really
-    std::visit ( [ this ] ( const auto & x ) -> void
+    std::visit ( [ p ] ( const auto & x ) -> void
     {
       using  X = std::remove_cvref_t<decltype ( x )>;
       if constexpr ( std::is_same_v<X, MsgHeaders> )
       {
         auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
-        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
+        p -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
       {
         auto  trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *x . m_Trailers );
-        this -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
+        p -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
       }
       else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
-        this -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
+        p -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
       }
       else
         assert ( 0 );
