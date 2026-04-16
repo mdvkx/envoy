@@ -17,7 +17,7 @@ auto  Filter::onDestroy ( ) -> void
 auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
                               bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "@@@ decoding headers // stream id = {}", this -> decoder_callbacks_ -> streamId () );
+  ENVOY_LOG ( debug, "@@@ decoding headers // stream id = {:08x}", this -> decoder_callbacks_ -> streamId () );
   return  Http::FilterHeadersStatus::Continue;
 }
 
