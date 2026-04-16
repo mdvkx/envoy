@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./cache.h"
+//#include "./cache.h"
 
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/http/header_map.h"  // RequestHeaderMap
@@ -18,13 +18,12 @@
 #include <string>
 #include <utility>
 
-
-namespace  Envoy::Extensions::HttpFilters::Rqc {
-
+namespace  Envoy::Extensions::HttpFilters::Rqc
+{
 
 enum struct  State : std::uint32_t
 {
-  Unknown,
+  Initial,
 
   // i'm responsible for sending the request upstream and streaming the response for all subscribers
   Publisher,  // 1st
@@ -35,32 +34,48 @@ enum struct  State : std::uint32_t
   */
 };
 
+struct  Cache
+{
+};
+
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
-  State  m_State = State::Unknown;
   std::shared_ptr<Cache>  m_Cache;
-  std::string  m_Key;
-  std::optional<Pending>  m_Pending;
-        Filter ( std::shared_ptr<Cache>  cache );
-        ~Filter ( ) override = default;
-  auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
-                         bool  is_last ) -> Http::FilterHeadersStatus override;
-  auto  encodeHeaders  ( Http::ResponseHeaderMap & headers,
-                         bool  is_last ) -> Http::FilterHeadersStatus override;
-  auto  encodeData     ( Buffer::Instance & data,
-                         bool  is_last ) -> Http::FilterDataStatus override;
-  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
-  auto  encodeComplete ( ) -> void override;
-  auto  onStreamComplete ( ) -> void override;
-  auto  onDestroy      ( ) -> void override;
-  auto  post           ( std::invocable<> auto && x ) -> void
+
+  State  m_State = State::Initial;
+
+  Filter ( std::shared_ptr<Cache>  cache )
+    : m_Cache { cache }
   {
-    this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), x = std::move ( x ) ] ( ) mutable -> void
-    {
-      if ( auto  p = wp . lock () )
-        x ();
-    } );
   }
+
+  auto  onDestroy ( ) -> void override
+  {
+  }
+
+  auto  decodeHeaders ( Http::RequestHeaderMap & headers,
+                        bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeHeaders ( Http::ResponseHeaderMap & headers,
+                        bool  is_last ) -> Http::FilterHeadersStatus override
+  {
+    return  Http::FilterHeadersStatus::Continue;
+  }
+
+  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
+  {
+    return  Http::FilterTrailersStatus::Continue;
+  }
+
+  auto  encodeData    ( Buffer::Instance & body,
+                        bool  is_last ) -> Http::FilterDataStatus override
+  {
+    return  Http::FilterDataStatus::Continue;
+  }
+
 };
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::rqc::Config>
