@@ -1,6 +1,6 @@
 #pragma once
 
-//#include "./cache.h"
+#include "./cache.h"
 
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/http/header_map.h"  // RequestHeaderMap
@@ -28,78 +28,6 @@ enum struct  State : std::uint32_t
   Publisher,  // 1st
   // waiting for the response to be published
   Subscriber, // 2nd, 3rd, 4th, ...
-};
-
-struct  Filter;
-
-struct  Ticket
-{
-  std::vector<std::shared_ptr<Filter> >  m_Waiting;
-};
-
-struct  Cache
-{
-  mutable std::mutex  m_Mtx;
-  std::unordered_map<std::string, Ticket>  m_Requests;
-  [[nodiscard]]
-  auto  size ( ) const -> std::size_t
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    return  m_Requests . size ();
-  }
-  auto  insert ( const std::string & k,
-                 const std::function<Ticket ()> & v ) -> bool
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    auto  i = m_Requests . find ( k );
-    if ( i != m_Requests . end () )
-      return  false;
-    m_Requests . emplace_hint ( i, k, v () );
-    return  true;
-  }
-  auto  insert_or ( const std::string & k,
-                    const std::function<Ticket ()> & v,
-                    const std::function<void (Ticket &)> & f ) -> bool
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    auto  i = m_Requests . find ( k );
-    if ( i != m_Requests . end () )
-    {
-      f ( i -> second );
-      return  false;
-    }
-    else
-    {
-      m_Requests . emplace_hint ( i, k, v () );
-      return  true;
-    }
-  }
-  auto  lookup ( const std::string & k,
-                 const std::function<void (const Ticket &)> & f ) const -> bool
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    auto  i = m_Requests . find ( k );
-    if ( i == m_Requests . end () )
-      return  false;
-    f ( i -> second );
-    return  true;
-  }
-  [[nodiscard]]
-  auto  contains ( const std::string & k ) const -> bool
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    return  m_Requests . contains ( k );
-  }
-  auto  remove ( const std::string & k ) -> std::optional<Ticket>
-  {
-    auto  l = std::unique_lock { m_Mtx };
-    auto  i = m_Requests . find ( k );
-    if ( i == m_Requests . end () )
-      return  std::nullopt;
-    auto  x = std::move ( i -> second );
-    m_Requests . erase ( i );
-    return  x;
-  }
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
