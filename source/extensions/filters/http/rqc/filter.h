@@ -52,70 +52,26 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   State  m_State = State::Initial;
 
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string;
+
   Filter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
   }
 
-  auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
-  {
-    return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
-  }
-
   // Http::StreamFilterBase
-  auto  onDestroy ( ) -> void override
-  {
-  }
+  auto  onDestroy ( ) -> void override;
 
   // Http::StreamDecoderFilter
   auto  decodeHeaders ( Http::RequestHeaderMap & headers,
-                        bool  is_last ) -> Http::FilterHeadersStatus override
-  {
-    m_Key = this -> derive_key ( headers );
-    auto  l = std::unique_lock { m_Cache -> m_Mtx };
-    auto  i = m_Cache -> m_Requests . find ( m_Key );
-    if ( i == m_Cache -> m_Requests . end () )
-    {
-      m_Cache -> m_Requests . emplace_hint ( i, m_Key, Ticket {} );
-      m_X = true;
-      return  Http::FilterHeadersStatus::Continue;
-    }
-    else
-      return  Http::FilterHeadersStatus::StopIteration;
-  }
+                        bool  is_last ) -> Http::FilterHeadersStatus override;
 
   // Http::StreamEncoderFilter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers,
-                        bool  is_last ) -> Http::FilterHeadersStatus override
-  {
-    if ( m_X && is_last )
-    {
-      auto  l = std::unique_lock { m_Cache -> m_Mtx };
-      m_Cache -> m_Requests . erase ( m_Key );
-    }
-    return  Http::FilterHeadersStatus::Continue;
-  }
-
-  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
-  {
-    if ( m_X )
-    {
-      auto  l = std::unique_lock { m_Cache -> m_Mtx };
-      m_Cache -> m_Requests . erase ( m_Key );
-    }
-    return  Http::FilterTrailersStatus::Continue;
-  }
-
+                        bool  is_last ) -> Http::FilterHeadersStatus override;
+  auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
   auto  encodeData    ( Buffer::Instance & body,
-                        bool  is_last ) -> Http::FilterDataStatus override
-  {
-    if ( m_X && is_last )
-    {
-      auto  l = std::unique_lock { m_Cache -> m_Mtx };
-      m_Cache -> m_Requests . erase ( m_Key );
-    }
-    return  Http::FilterDataStatus::Continue;
-  }
+                        bool  is_last ) -> Http::FilterDataStatus override;
 
 };
 
