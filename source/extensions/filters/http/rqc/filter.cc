@@ -166,12 +166,12 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
         this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
+        assert ( 0 );
+      else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
         this -> decoder_callbacks_ -> encodeData    ( std::move ( body ), x . m_Last );
       }
-      else if constexpr ( std::is_same_v<X, MsgBody> )
-        assert ( 0 );
       else
         assert ( 0 );
     }, *msg );
