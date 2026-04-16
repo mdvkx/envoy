@@ -70,7 +70,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData    ( Buffer::Instance & body,
                         bool  is_last ) -> Http::FilterDataStatus override;
 
-  static auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string;
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
 
 };
 

@@ -41,7 +41,7 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
   return  Http::FilterDataStatus::Continue;
 }
 
-auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
+auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::string
 {
   return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
 }
