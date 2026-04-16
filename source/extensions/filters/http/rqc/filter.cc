@@ -72,7 +72,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
            x . has_value () )
       {
         m_Waiting = std::move ( x -> m_Waiting );
-        auto  msg = std::make_shared<Msg> ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
+        auto  msg = std::make_shared<const Msg> ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( headers ), is_last } );
         for ( auto  w : m_Waiting )
           w -> receive_msg ( msg );
       }
@@ -144,8 +144,32 @@ auto  Filter::derive_key ( const Http::RequestHeaderMap & headers ) -> std::stri
   return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
 }
 
-auto  Filter::receive_msg ( std::shared_ptr<Msg>  msg ) -> void
+auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
 {
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ this, msg, wp = this -> weak_from_this () ] ( ) -> void
+  {
+    auto  p = wp . lock ();
+    if ( ! p )
+      return;
+
+    std::visit ( [ this ] ( const auto & x ) -> void
+    {
+      using  X = std::remove_cvref_t<decltype ( x )> ;
+      if constexpr ( std::is_same_v<X, MsgHeaders> )
+      {
+        auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last );
+      }
+      else if constexpr ( std::is_same_v<X, MsgTrailers> )
+        assert ( 0 );
+      else if constexpr ( std::is_same_v<X, MsgBody> )
+        assert ( 0 );
+      else
+        assert ( 0 );
+    }, *msg );
+  } );
+
+  /*
   std::visit ( [ this ] ( const auto & x ) -> void
   {
     using  X = std::remove_cvref_t<decltype ( x )> ;
@@ -168,6 +192,7 @@ auto  Filter::receive_msg ( std::shared_ptr<Msg>  msg ) -> void
     else
       assert ( 0 );
   }, *msg );
+  */
 }
 
 
