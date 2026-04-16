@@ -156,51 +156,28 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
     auto  p = wp . lock ();
     if ( ! p )
       return;
-
-    std::visit ( [ this ] ( const auto & x ) -> void
+    std::visit ( [ p ] ( const auto & x ) -> void
     {
       using  X = std::remove_cvref_t<decltype ( x )> ;
       if constexpr ( std::is_same_v<X, MsgHeaders> )
       {
         auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
-        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
+        p -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
-        assert ( 0 );
+      {
+        auto  trailers = Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( *x . m_Trailers );
+        p -> decoder_callbacks_ -> encodeTrailers ( std::move ( trailers ) );
+      }
       else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
-        this -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
+        p -> encoder_callbacks_ -> injectEncodedDataToFilterChain    ( *body, x . m_Last );
       }
       else
         assert ( 0 );
     }, *msg );
   } );
-
-  /*
-  std::visit ( [ this ] ( const auto & x ) -> void
-  {
-    using  X = std::remove_cvref_t<decltype ( x )> ;
-    if constexpr ( std::is_same_v<X, MsgHeaders> )
-    {
-      this -> decoder_callbacks_ -> dispatcher () . post ( [ this, msg, wp = this -> weak_from_this () ] ( ) -> void
-      {
-        auto  p = wp . lock ();
-        if ( ! p )
-          return;
-        const auto & mx = std::get<MsgHeaders> ( *msg );
-        auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *mx . m_Headers );
-        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), mx . m_Last, "hulahoop" );
-      } );
-    }
-    else if constexpr ( std::is_same_v<X, MsgTrailers> )
-      assert ( 0 );
-    else if constexpr ( std::is_same_v<X, MsgBody> )
-      assert ( 0 );
-    else
-      assert ( 0 );
-  }, *msg );
-  */
 }
 
 
