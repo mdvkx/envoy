@@ -34,13 +34,21 @@ enum struct  State : std::uint32_t
   */
 };
 
+struct  Ticket
+{
+};
+
 struct  Cache
 {
+  std::mutex  m_Mtx;
+  std::unordered_map<std::string, Ticket>  m_Requests;
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
   std::shared_ptr<Cache>  m_Cache;
+  std::string  m_Key;
+  bool  m_X = false;
 
   State  m_State = State::Initial;
 
@@ -49,30 +57,63 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   {
   }
 
+  auto  derive_key ( const Http::RequestHeaderMap & headers ) const -> std::string
+  {
+    return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
+  }
+
+  // Http::StreamFilterBase
   auto  onDestroy ( ) -> void override
   {
   }
 
+  // Http::StreamDecoderFilter
   auto  decodeHeaders ( Http::RequestHeaderMap & headers,
                         bool  is_last ) -> Http::FilterHeadersStatus override
   {
-    return  Http::FilterHeadersStatus::Continue;
+    m_Key = this -> derive_key ( headers );
+    auto  l = std::unique_lock { m_Cache -> m_Mtx };
+    auto  i = m_Cache -> m_Requests . find ( m_Key );
+    if ( i == m_Cache -> m_Requests . end () )
+    {
+      m_Cache -> m_Requests . emplace_hint ( i, m_Key, Ticket {} );
+      m_X = true;
+      return  Http::FilterHeadersStatus::Continue;
+    }
+    else
+      return  Http::FilterHeadersStatus::StopIteration;
   }
 
+  // Http::StreamEncoderFilter
   auto  encodeHeaders ( Http::ResponseHeaderMap & headers,
                         bool  is_last ) -> Http::FilterHeadersStatus override
   {
+    if ( m_X && is_last )
+    {
+      auto  l = std::unique_lock { m_Cache -> m_Mtx };
+      m_Cache -> m_Requests . erase ( m_Key );
+    }
     return  Http::FilterHeadersStatus::Continue;
   }
 
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override
   {
+    if ( m_X )
+    {
+      auto  l = std::unique_lock { m_Cache -> m_Mtx };
+      m_Cache -> m_Requests . erase ( m_Key );
+    }
     return  Http::FilterTrailersStatus::Continue;
   }
 
   auto  encodeData    ( Buffer::Instance & body,
                         bool  is_last ) -> Http::FilterDataStatus override
   {
+    if ( m_X && is_last )
+    {
+      auto  l = std::unique_lock { m_Cache -> m_Mtx };
+      m_Cache -> m_Requests . erase ( m_Key );
+    }
     return  Http::FilterDataStatus::Continue;
   }
 
