@@ -78,7 +78,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
 
-  auto  receive_msg ( std::shared_ptr<Msg>  msg ) -> void;
+  auto  receive_msg ( std::shared_ptr<const Msg>  msg ) -> void;
 
 };
 
