@@ -32,8 +32,8 @@ enum struct  State : std::uint32_t
 
 struct  MsgHeaders
 {
-  //std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
-  //bool  m_Last;
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
+  bool  m_Last;
 };
 struct  MsgTrailers
 {

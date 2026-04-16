@@ -72,7 +72,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
            x . has_value () )
       {
         m_Waiting = std::move ( x -> m_Waiting );
-        auto  msg = std::make_shared<Msg> ( MsgHeaders { } );
+        auto  msg = std::make_shared<Msg> ( MsgHeaders { Http::createHeaderMap<Http::ResponseHeaderMap> ( headers ), is_last } );
         for ( auto  w : m_Waiting )
           w -> receive_msg ( msg );
       }
@@ -150,7 +150,10 @@ auto  Filter::receive_msg ( std::shared_ptr<Msg>  msg ) -> void
   {
     using  X = std::remove_cvref_t<decltype ( x )> ;
     if constexpr ( std::is_same_v<X, MsgHeaders> )
-      assert ( 0 );
+    {
+      auto  headers = Http::createHeaderMap<Http::ResponseHeaderMap> ( *x . m_Headers );
+      this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last );
+    }
     else if constexpr ( std::is_same_v<X, MsgTrailers> )
       assert ( 0 );
     else if constexpr ( std::is_same_v<X, MsgBody> )
