@@ -13,9 +13,12 @@ auto  Filter::onDestroy ( ) -> void
 {
   ENVOY_LOG (
     debug,
-    "@@@ [stream id = {:08x}] destroy",
+    "@@@ destroy  // stream id = {:08x}",
     this -> decoder_callbacks_ -> streamId ()
   );
+
+  if ( m_First )
+    m_Cache -> remove ( m_Key );
 }
 
 auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
@@ -23,10 +26,14 @@ auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
 {
   ENVOY_LOG (
     debug,
-    "@@@ [stream id = {:08x}] decoding headers",
+    "@@@ decoding headers  // stream id = {:08x}",
     this -> decoder_callbacks_ -> streamId ()
   );
 
+  m_Key = Self::derive_key ( headers );
+  m_First = m_Cache -> insert ( m_Key, [ ] ( ) { return  Ticket {}; } );
+  if ( ! m_First )
+    return  Http::FilterHeadersStatus::StopIteration;
   return  Http::FilterHeadersStatus::Continue;
 }
 
@@ -35,7 +42,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
 {
   ENVOY_LOG (
     debug,
-    "@@@ [stream id = {:08x}] encoding headers",
+    "@@@ encoding headers  // stream id = {:08x}",
     this -> decoder_callbacks_ -> streamId ()
   );
 
@@ -46,7 +53,7 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 {
   ENVOY_LOG (
     debug,
-    "@@@ [stream id = {:08x}] encoding trailers",
+    "@@@ encoding trailers  // stream id = {:08x}",
     this -> decoder_callbacks_ -> streamId ()
   );
 
@@ -58,8 +65,9 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 {
   ENVOY_LOG (
     debug,
-    "@@@ [stream id = {:08x}] encoding {} bytes body",
-    this -> decoder_callbacks_ -> streamId (), body . length ()
+    "@@@ encoding {} bytes body  // stream id = {:08x}",
+    body . length (),
+    this -> decoder_callbacks_ -> streamId ()
   );
 
   return  Http::FilterDataStatus::Continue;

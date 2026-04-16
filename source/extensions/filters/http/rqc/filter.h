@@ -42,12 +42,35 @@ struct  Cache
 {
   std::mutex  m_Mtx;
   std::unordered_map<std::string, Ticket>  m_Requests;
+  auto  insert ( const std::string & k,
+                 const std::function<Ticket ()> & v ) -> bool
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    auto  i = m_Requests . find ( k );
+    if ( i == m_Requests . end () )
+      return  false;
+    m_Requests . emplace_hint ( i, k, v () );
+    return  true;
+  }
+  auto  remove ( const std::string & k ) -> std::optional<Ticket>
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    auto  i = m_Requests . find ( k );
+    if ( i == m_Requests . end () )
+      return  std::nullopt;
+    auto  x = std::move ( i -> second );
+    m_Requests . erase ( i );
+    return  x;
+  }
 };
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
+  using  Self = Filter;
+
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
+  bool  m_First = false;
 
   State  m_State = State::Initial;
 
