@@ -170,7 +170,7 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
       else if constexpr ( std::is_same_v<X, MsgBody> )
       {
         auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
-        this -> decoder_callbacks_ -> encodeData    ( std::move ( body ), x . m_Last );
+        this -> decoder_callbacks_ -> encodeData    ( *body, x . m_Last );
       }
       else
         assert ( 0 );
