@@ -41,8 +41,8 @@ struct  MsgTrailers
 };
 struct  MsgBody
 {
-  //std::unique_ptr<Buffer::Instance>  m_Body;
-  //bool  m_Last;
+  std::unique_ptr<Buffer::Instance>  m_Body;
+  bool  m_Last;
 };
 
 using  Msg = std::variant<MsgHeaders, MsgTrailers, MsgBody>;

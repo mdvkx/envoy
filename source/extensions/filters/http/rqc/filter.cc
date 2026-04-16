@@ -128,8 +128,13 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
   switch ( m_State )
   {
     case  State::Publisher:
+    {
+      auto  msg = std::make_shared<const Msg> ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( body ), is_last } );
+      for ( auto  w : m_Waiting )
+        w -> receive_msg ( msg );
       return  Http::FilterDataStatus::Continue;
       break;
+    }
     case  State::Subscriber:
       return  Http::FilterDataStatus::Continue;
       break;
@@ -161,7 +166,10 @@ auto  Filter::receive_msg ( std::shared_ptr<const Msg>  msg ) -> void
         this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
       }
       else if constexpr ( std::is_same_v<X, MsgTrailers> )
-        assert ( 0 );
+      {
+        auto  body = std::make_unique<Buffer::OwnedImpl> ( *x . m_Body );
+        this -> decoder_callbacks_ -> encodeData    ( std::move ( body ), x . m_Last );
+      }
       else if constexpr ( std::is_same_v<X, MsgBody> )
         assert ( 0 );
       else
