@@ -151,8 +151,15 @@ auto  Filter::receive_msg ( std::shared_ptr<Msg>  msg ) -> void
     using  X = std::remove_cvref_t<decltype ( x )> ;
     if constexpr ( std::is_same_v<X, MsgHeaders> )
     {
-      auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *x . m_Headers );
-      this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), x . m_Last, "hulahoop" );
+      this -> decoder_callbacks_ -> dispatcher () . post ( [ this, msg, wp = this -> weak_from_this () ] ( ) -> void
+      {
+        auto  p = wp . lock ();
+        if ( ! p )
+          return;
+        const auto & mx = std::get<MsgHeaders> ( *msg );
+        auto  headers = Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( *mx . m_Headers );
+        this -> decoder_callbacks_ -> encodeHeaders ( std::move ( headers ), mx . m_Last, "hulahoop" );
+      } );
     }
     else if constexpr ( std::is_same_v<X, MsgTrailers> )
       assert ( 0 );
