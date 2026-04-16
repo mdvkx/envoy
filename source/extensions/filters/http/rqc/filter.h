@@ -47,7 +47,7 @@ struct  Cache
   {
     auto  l = std::unique_lock { m_Mtx };
     auto  i = m_Requests . find ( k );
-    if ( i == m_Requests . end () )
+    if ( i != m_Requests . end () )
       return  false;
     m_Requests . emplace_hint ( i, k, v () );
     return  true;
