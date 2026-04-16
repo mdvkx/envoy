@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <utility>
 
-
 namespace  Envoy::Extensions::HttpFilters::Rqc
 {
 

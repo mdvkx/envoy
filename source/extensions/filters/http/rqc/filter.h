@@ -36,6 +36,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   std::shared_ptr<Cache>  m_Cache;
   std::string  m_Key;
+  std::vector<std::shared_ptr<Filter> >  m_Waiting;
 
   State  m_State = State::Initial;
 

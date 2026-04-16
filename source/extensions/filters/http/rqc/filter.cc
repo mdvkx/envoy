@@ -68,6 +68,15 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
   switch ( m_State )
   {
     case  State::Publisher:
+      if ( auto  x = m_Cache -> remove ( m_Key );
+           x . has_value () )
+      {
+        m_Waiting = std::move ( x -> m_Waiting );
+      }
+      else
+      {
+        assert ( 0 );
+      }
       return  Http::FilterHeadersStatus::Continue;
       break;
     case  State::Subscriber:
