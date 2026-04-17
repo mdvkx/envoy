@@ -1,10 +1,9 @@
 #pragma once
 
-#include "./cache.h"
-
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 #include "source/common/common/logger.h"  // Loggable, Id
+#include "source/extensions/filters/http/common/concurrent_hash_map.h"  // ConcurrentHashMap
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase<>
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 
@@ -46,6 +45,15 @@ struct  MsgBody
 };
 
 using  Msg = std::variant<MsgHeaders, MsgTrailers, MsgBody>;
+
+struct  Filter;
+
+struct  Ticket
+{
+  std::vector<std::shared_ptr<Filter> >  m_Waiting;
+};
+
+using  Cache = ConcurrentHashMap<std::string, Ticket>;
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
