@@ -70,7 +70,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
     if ( response -> m_Body )
     {
       auto  body = Buffer::OwnedImpl { *response -> m_Body };
-      p -> decoder_callbacks_ -> injectEncodedDataToFilterChain ( body, response -> m_Trailers == nullptr );
+      p -> encoder_callbacks_ -> injectEncodedDataToFilterChain ( body, response -> m_Trailers == nullptr );
     }
     if ( response -> m_Trailers )
       p -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
