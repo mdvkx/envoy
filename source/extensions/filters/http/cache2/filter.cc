@@ -165,7 +165,7 @@ auto  Filter::derive_key  ( const Http::RequestHeaderMap & headers ) -> std::str
 
 auto  Filter::commit  ( ) -> void
 {
-  m_Cache -> insert_or_assign ( m_Key, [ ] ( ) { return  std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Body ), std::move ( m_Stamp ) ); } );
+  m_Cache -> insert_or_assign ( m_Key, [ this ] ( ) { return  std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Body ), std::move ( m_Stamp ) ); } );
 }
 
 

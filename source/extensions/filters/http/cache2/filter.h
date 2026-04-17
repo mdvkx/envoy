@@ -29,6 +29,14 @@ enum struct  State
   Hit,
 };
 
+struct  Response
+{
+  std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
+  std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
+  std::string  m_Data = "";
+  Envoy::SystemTime  m_Stamp;
+};
+
 using  Cache = ConcurrentHashMap<std::string, std::shared_ptr<const Response> >;
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
