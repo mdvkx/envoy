@@ -67,6 +67,9 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
 
   switch ( m_State )
   {
+    case  State::Initial:  // can happen when an earlier decoder filter stop iteration and submits data to encode
+      return  Http::FilterHeadersStatus::Continue;
+      break;
     case  State::Publisher:
       if ( auto  x = m_Cache -> remove ( m_Key );
            x . has_value () )
@@ -78,7 +81,7 @@ auto  Filter::encodeHeaders ( Http::ResponseHeaderMap & headers,
       }
       else
       {
-        assert ( 0 );
+        assert ( 0 && "i'm the publisher but the request i registered is not there anymore, what." );
       }
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -102,6 +105,9 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
 
   switch ( m_State )
   {
+    case  State::Initial:  // can happen when an earlier decoder filter stop iteration and submits data to encode
+      return  Http::FilterTrailersStatus::Continue;
+      break;
     case  State::Publisher:
     {
       auto  msg = std::make_shared<const Msg> ( MsgTrailers { Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( trailers ) } );
@@ -132,6 +138,9 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 
   switch ( m_State )
   {
+    case  State::Initial:  // can happen when an earlier decoder filter stop iteration and submits data to encode
+      return  Http::FilterDataStatus::Continue;
+      break;
     case  State::Publisher:
     {
       auto  msg = std::make_shared<const Msg> ( MsgBody { std::make_unique<Buffer::OwnedImpl> ( body ), is_last } );

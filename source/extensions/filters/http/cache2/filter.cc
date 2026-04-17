@@ -60,12 +60,13 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   m_State = State::Hit;
   ENVOY_LOG ( debug, "cache hit" );
 
-  // TODO: maybe use sendLocalReply() instead?
   this -> decoder_callbacks_ -> dispatcher () . post ( [ response = (*response), wp = this -> weak_from_this () ] ( ) mutable -> void
   {
     auto  p = wp . lock ();
     if ( ! p )
       return;
+    // TODO: maybe use sendLocalReply() instead?
+    // not checking headers for null, they really have to be there
     p -> decoder_callbacks_ -> encodeHeaders ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ),
                                                response -> m_Body == nullptr && response -> m_Trailers == nullptr,
                                                "hulahoop" );
