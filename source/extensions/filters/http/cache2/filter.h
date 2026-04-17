@@ -31,7 +31,7 @@ struct  Response
 {
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  std::unique_ptr<Buffer::Instance>  m_Body = nullptr;
+  std::string  m_Body = "";
   Envoy::SystemTime  m_Stamp;
 };
 
@@ -48,7 +48,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  std::unique_ptr<Buffer::Instance>  m_Body = nullptr;
+  std::string  m_Body = "";
   Envoy::SystemTime  m_Stamp;
 
         Filter ( std::shared_ptr<Cache>  cache )
