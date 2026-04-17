@@ -75,7 +75,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
       p -> decoder_callbacks_ -> encodeData     ( body, response -> m_Trailers == nullptr );
     }
     if ( response -> m_Trailers )
-      p -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) )
+      p -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
   } );
 
   return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
