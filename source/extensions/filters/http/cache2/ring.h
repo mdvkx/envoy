@@ -3,6 +3,7 @@
 #include <bit>  // std::has_single_bit
 #include <cstddef>  // std::{byte, size_t}
 #include <memory>  // std::{addressof, construct_at, destroy_at}
+#include <optional>  // std::{nullopt, optional}
 #include <stdexcept>  // std::invalid_argument
 #include <utility>  // std::move
 

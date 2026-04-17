@@ -48,7 +48,7 @@ struct  Cache
   using  Entry = std::pair<Key, Value>;
 
   mutable std::mutex  m_Mtx;
-  Ring<Entry, 10>     m_Ring;
+  Ring<Entry, 4>     m_Ring;
 
   [[nodiscard]]
   auto  lookup ( const Key & k ) const -> std::optional<Value>
