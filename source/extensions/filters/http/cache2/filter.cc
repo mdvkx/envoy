@@ -49,7 +49,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
   auto  response = m_Cache -> lookup ( m_Key );  // safe to copy because the values are shared pointers
   if (
     ! response
-    || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are expired
+    || std::chrono::system_clock::now () - (*response) -> m_Stamp > 10s  // pretend entries older than 60s are expired
   )
   {
     m_State = State::Miss;
@@ -70,7 +70,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
     if ( response -> m_Body )
     {
       auto  body = Buffer::OwnedImpl { *response -> m_Body };
-      p -> decoder_callbacks_ -> encodeData     ( body, response -> m_Trailers == nullptr );
+      p -> decoder_callbacks_ -> injectEncodedDataToFilterChain ( body, response -> m_Trailers == nullptr );
     }
     if ( response -> m_Trailers )
       p -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
