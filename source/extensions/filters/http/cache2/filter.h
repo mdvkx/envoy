@@ -31,7 +31,7 @@ struct  Response
 {
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  std::string  m_Body = "";
+  std::unique_ptr<Buffer::Instance>  m_Body = nullptr;
   Envoy::SystemTime  m_Stamp;
 };
 
@@ -40,15 +40,15 @@ using  Cache = ConcurrentHashMap<std::string, std::shared_ptr<const Response> >;
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
   using  Self = Filter;
-  State  m_State = State::Initial;
 
   std::shared_ptr<Cache>  m_Cache;
-
   std::string  m_Key;
+
+  State  m_State = State::Initial;
 
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  std::string  m_Body = "";
+  std::unique_ptr<Buffer::Instance>  m_Body = nullptr;
   Envoy::SystemTime  m_Stamp;
 
         Filter ( std::shared_ptr<Cache>  cache )

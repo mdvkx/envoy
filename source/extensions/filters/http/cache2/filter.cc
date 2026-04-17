@@ -124,7 +124,9 @@ auto  Filter::encodeData     ( Buffer::Instance & body,
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Miss:
-      m_Body += body . toString ();
+      if ( ! m_Body )
+        m_Body = std::make_unique<Buffer::OwnedImpl> ();
+      m_Body -> add ( body );
       if ( is_last )
         this -> commit ();
       return  Http::FilterDataStatus::Continue;

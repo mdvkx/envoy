@@ -30,7 +30,7 @@ auto  Filter::onDestroy ( ) -> void
 }
 
 auto  Filter::decodeHeaders ( Http::RequestHeaderMap & headers,
-                              bool  is_last ) -> Http::FilterHeadersStatus
+                              bool   ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG (
     trace,
