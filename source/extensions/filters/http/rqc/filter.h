@@ -65,7 +65,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   State  m_State = State::Initial;
 
-  Filter ( std::shared_ptr<Cache>  cache )
+        Filter ( std::shared_ptr<Cache>  cache )
     : m_Cache { cache }
   {
   }
@@ -84,6 +84,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   auto  encodeData    ( Buffer::Instance & body,
                         bool  is_last ) -> Http::FilterDataStatus override;
 
+  [[nodiscard]]
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
 
   auto  receive_msg ( std::shared_ptr<const Msg>  msg ) -> void;

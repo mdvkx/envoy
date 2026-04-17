@@ -9,7 +9,8 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace  Envoy::Extensions::HttpFilters::Cache2 {
+namespace  Envoy::Extensions::HttpFilters::Cache2
+{
 
 static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 {  //  taken from file://./../cache/cacheability_utils.cc
@@ -21,13 +22,13 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
 
 auto  Filter::onDestroy ( ) -> void
 {
-  ENVOY_LOG ( debug, "on destroy" );
+  ENVOY_LOG ( trace, "on destroy" );
 }
 
 auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "decoding: headers = [host=\"{}\", path=\"{}\", is last = {}", headers . getHostValue (), headers . getPathValue (), is_last );
+  ENVOY_LOG ( trace, "decoding: headers = [host=\"{}\", path=\"{}\", is last = {}", headers . getHostValue (), headers . getPathValue (), is_last );
 
   using  namespace std::literals;
 
@@ -45,21 +46,17 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
 
   m_Key = Self::derive_key ( headers );
 
-  auto  response = m_Cache -> lookup ( m_Key );  // safe because we copy shared pointers
-
+  auto  response = m_Cache -> lookup ( m_Key );  // safe to copy because the values are shared pointers
   if (
     ! response
     || std::chrono::system_clock::now () - (*response) -> m_Stamp > 60s  // pretend entries older than 60s are expired
   )
   {
-    ENVOY_LOG ( debug, "cache miss" );
     m_State = State::Miss;
     return  Http::FilterHeadersStatus::Continue;
   }
 
   m_State = State::Hit;
-  ENVOY_LOG ( debug, "cache hit" );
-
   this -> decoder_callbacks_ -> dispatcher () . post ( [ response = (*response), wp = this -> weak_from_this () ] ( ) mutable -> void
   {
     auto  p = wp . lock ();
@@ -85,7 +82,7 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
 auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
                                bool  is_last ) -> Http::FilterHeadersStatus
 {
-  ENVOY_LOG ( debug, "encoding: headers = [status={}, ...]; is last = {}", headers . getStatusValue (), is_last );
+  ENVOY_LOG ( trace, "encoding: headers = [status={}, ...]; is last = {}", headers . getStatusValue (), is_last );
   switch ( m_State )
   {
     case  State::NotCacheable:
@@ -118,7 +115,7 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
 auto  Filter::encodeData     ( Buffer::Instance & body,
                                bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "encoding: {} bytes of body; is last = {}", body . length (), is_last );
+  ENVOY_LOG ( trace, "encoding: {} bytes of body; is last = {}", body . length (), is_last );
   switch ( m_State )
   {
     case  State::NotCacheable:
@@ -143,7 +140,7 @@ auto  Filter::encodeData     ( Buffer::Instance & body,
 
 auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus
 {
-  ENVOY_LOG ( debug, "encoding: trailers" );
+  ENVOY_LOG ( trace, "encoding: trailers" );
   switch ( m_State )
   {
     case  State::NotCacheable:

@@ -35,7 +35,37 @@ struct  Response
   Envoy::SystemTime  m_Stamp;
 };
 
+/*
 using  Cache = ConcurrentHashMap<std::string, std::shared_ptr<const Response> >;
+*/
+
+struct  Cache
+{
+  using  Key = std::string;
+  using  Value = std::shared_ptr<const Response>;
+  using  Entry = std::pair<Key, Value>;
+
+  mutable std::mutex  m_Mtx;
+  Ring<Entry, 10>     m_Ring;
+
+  [[nodiscard]]
+  auto  lookup ( const Key & k ) const -> std::optional<Value>
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    // go in reverse, latest to oldest
+    for ( std::size_t  i = 0; i < m_Ring . size (); i ++ )
+      if ( const auto & [ xk, xv ] = m_Ring [ (m_Ring . size () - (i + 1)) ];
+           xk == k )
+        return  xv;
+    return  std::nullopt;
+  }
+  auto  insert_or_assign ( const Key & k,
+                           const std::function<Value ()> & v ) -> void
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    m_Ring . push ( std::make_pair ( k, v () ) );  // TODO: doesn't really have the "assign" part to it, does it
+  }
+};
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
@@ -72,21 +102,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   [[nodiscard]]
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
 
-  auto  commit         ( ) -> void;
-
-  template <typename  F_>
-  auto  post ( F_ && f ) -> void
-  {
-    this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::forward<F_> ( f ) ] ( ) mutable -> void
-    {  // aka "cancel wrapper"
-      if ( auto  p = wp . lock () )
-      {
-        (std::move ( f )) ();
-      }
-    } );
-  }
-
-
+  auto  commit ( ) -> void;
 };
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::cache2::Config>
