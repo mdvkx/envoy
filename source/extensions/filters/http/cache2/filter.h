@@ -73,20 +73,21 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
 
   auto  commit         ( ) -> void;
-  auto  post           ( std::invocable<> auto && f ) -> void;
+
+  template <typename  F_>
+  auto  post ( F_ && f ) -> void
+  {
+    this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::forward<F_> ( f ) ] ( ) mutable -> void
+    {  // aka "cancel wrapper"
+      if ( auto  p = wp . lock () )
+      {
+        (std::move ( f )) ();
+      }
+    } );
+  }
+
 
 };
-
-auto  Filter::post ( std::invocable<> auto && f ) -> void
-{
-  this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::move ( f ) ] ( ) mutable -> void
-  {  // aka "cancel wrapper"
-    if ( auto  p = wp . lock () )
-    {
-      (std::move ( f )) ();
-    }
-  } );
-}
 
 struct  Factory : public Common::FactoryBase<envoy::extensions::filters::http::cache2::Config>
 {

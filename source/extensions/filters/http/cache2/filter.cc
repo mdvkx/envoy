@@ -59,22 +59,25 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
 
   m_State = State::Hit;
   ENVOY_LOG ( debug, "cache hit" );
+
   // TODO: maybe use sendLocalReply() instead?
-  this -> post ( [ this, response = (*response) ] ( ) -> void
+  this -> decoder_callbacks_ -> dispatcher () . post ( [ response = (*response), wp = this -> weak_from_this () ] ( ) mutable -> void
   {
-    const auto  is_last = response -> m_Body . empty () && response -> m_Trailers == nullptr;
-    this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last, "i've no idea what this \"details\" argument is for" );
+    auto  p = wp . lock ();
+    if ( ! p )
+      return;
+    p -> decoder_callbacks_ -> encodeHeaders ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ),
+                                               response -> m_Body == nullptr && response -> m_Trailers == nullptr,
+                                               "hulahoop" );
+    if ( response -> m_Body )
+    {
+      auto  body = Buffer::OwnedImpl { *response -> m_Body };
+      p -> decoder_callbacks_ -> encodeData     ( body, response -> m_Trailers == nullptr );
+    }
+    if ( response -> m_Trailers )
+      p -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) )
   } );
-  this -> post ( [ this, response = (*response) ] ( ) -> void
-  {
-    auto  data = Buffer::OwnedImpl { response -> m_Body };
-    const auto  is_last = response -> m_Trailers == nullptr;
-    this -> decoder_callbacks_ -> encodeData     ( data, is_last );
-  } );
-  this -> post ( [ this, response = (*response) ] ( ) -> void
-  {
-    this -> decoder_callbacks_ -> encodeTrailers ( Http::createHeaderMap<Http::ResponseTrailerMapImpl> ( * response -> m_Trailers ) );
-  } );
+
   return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
 }
 
