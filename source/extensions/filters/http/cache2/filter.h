@@ -1,6 +1,5 @@
 #pragma once
 
-#include "./cache.h"
 #include "./response.h"
 
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
@@ -8,6 +7,7 @@
 #include "envoy/http/header_map.h"  // RequestHeaderMap
 
 #include "source/common/common/logger.h"  // Loggable, Id
+#include "source/extensions/filters/http/common/concurrent_hash_map.h"  // ConcurrentHashMap
 #include "source/extensions/filters/http/common/factory_base.h"  // FactoryBase<>
 #include "source/extensions/filters/http/common/pass_through_filter.h"  // PassThroughFilter
 
@@ -23,16 +23,18 @@ namespace  Envoy::Extensions::HttpFilters::Cache2 {
 
 enum struct  State
 {
-  Unknown,
-  Destroyed,
+  Initial,
   NotCacheable,
   Miss,
   Hit,
 };
 
+using  Cache = ConcurrentHashMap<std::string, std::shared_ptr<const Response> >;
+
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
-  State  m_State = State::Unknown;
+  using  Self = Filter;
+  State  m_State = State::Initial;
 
   std::shared_ptr<Cache>  m_Cache;
 
@@ -40,7 +42,7 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
 
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers = nullptr;
   std::unique_ptr<Http::ResponseTrailerMap>  m_Trailers = nullptr;
-  std::string  m_Data = "";
+  std::string  m_Body = "";
   Envoy::SystemTime  m_Stamp;
 
         Filter ( std::shared_ptr<Cache>  cache )
@@ -48,33 +50,35 @@ struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger:
   {
   }
 
-  auto  post           ( std::invocable<> auto && f ) -> void;
-  auto  commit         ( ) -> void;
+  // Http::StreamFilterBase
+  auto  onDestroy ( ) -> void override;
 
+  // Http::StreamDecoderFilter
   auto  decodeHeaders  ( Http::RequestHeaderMap & headers,
                          bool  is_last ) -> Http::FilterHeadersStatus override;
+  // Http::StreamEncoderFilter
   auto  encodeHeaders  ( Http::ResponseHeaderMap & headers,
                          bool  is_last ) -> Http::FilterHeadersStatus override;
   auto  encodeData     ( Buffer::Instance & data,
                          bool  is_last ) -> Http::FilterDataStatus override;
   auto  encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::FilterTrailersStatus override;
-  auto  onStreamComplete ( ) -> void override;
-  auto  onDestroy ( ) -> void override;
+
+  [[nodiscard]]
+  static auto  derive_key ( const Http::RequestHeaderMap & headers ) -> std::string;
+
+  auto  commit         ( ) -> void;
+  auto  post           ( std::invocable<> auto && f ) -> void;
+
 };
 
 auto  Filter::post ( std::invocable<> auto && f ) -> void
 {
   this -> decoder_callbacks_ -> dispatcher () . post ( [ wp = this -> weak_from_this (), f = std::move ( f ) ] ( ) mutable -> void
   {  // aka "cancel wrapper"
-    auto  p = wp . lock ();
-    if (
-      p != nullptr
-      && p -> m_State != State::Destroyed
-    )
+    if ( auto  p = wp . lock () )
     {
       (std::move ( f )) ();
     }
-
   } );
 }
 

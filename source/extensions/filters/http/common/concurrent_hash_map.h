@@ -22,6 +22,16 @@ struct  ConcurrentHashMap
     return  m_Entries . size ();
   }
 
+  [[nodiscard]]
+  auto  lookup ( const Key & k ) const -> std::optional<Value>
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    if ( auto  i = m_Entries . find ( k );  i == m_Entries . end () )
+      return  std::nullopt;
+    else
+      return  i -> second;
+  }
+
   auto  lookup ( const Key & k,
                  const std::function<void (const Value &)> & f ) const -> bool
   {
@@ -67,6 +77,13 @@ struct  ConcurrentHashMap
       m_Entries . emplace_hint ( i, k, v () );
       return  true;
     }
+  }
+
+  auto  insert_or_assign ( const Key & k,
+                           const std::function<Value ()> & v ) -> void
+  {
+    auto  l = std::unique_lock { m_Mtx };
+    m_Entries . insert_or_assign ( k, v () );
   }
 
   auto  remove ( const Key & k ) -> std::optional<Value>

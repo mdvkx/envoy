@@ -124,7 +124,7 @@ auto  Filter::encodeData    ( Buffer::Instance & body,
 {
   ENVOY_LOG (
     trace,
-    "@@@ encoding {} bytes body  // state = {}, stream id = {}",
+    "@@@ encoding {} bytes of body  // state = {}, stream id = {}",
     body . length (),
     to_underlying ( m_State ),
     this -> decoder_callbacks_ -> streamId ()

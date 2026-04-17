@@ -19,13 +19,13 @@ static const auto  CACHEABLE_STATUS_CODES = std::unordered_set<std::string_view>
   "501",
 };
 
-auto  Filter::commit  ( ) -> void
+auto  Filter::onDestroy ( ) -> void
 {
-  // it's a bit unfortunate, i think if there's a cache miss and the response is stalled, then lots of clients can get the same response (literally, if they're coalesced) and then all of them are going to hammer the cache trying to insert an identical entry.
-  m_Cache -> insert ( m_Key, std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Data ), std::move ( m_Stamp ) ) );
+  ENVOY_LOG ( debug, "on destroy" );
 }
 
-auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
+auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers,
+                               bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG ( debug, "decoding: headers = [host=\"{}\", path=\"{}\", is last = {}", headers . getHostValue (), headers . getPathValue (), is_last );
 
@@ -43,10 +43,9 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
     return  Http::FilterHeadersStatus::Continue;
   }
 
-  m_Key =  absl::StrCat ( headers . getSchemeValue (), "://", headers . getHostValue (), headers . getPathValue () );
-  ENVOY_LOG ( debug, "key = \"{}\"", m_Key );
+  m_Key = Self::derive_key ( headers );
 
-  auto  response = m_Cache -> lookup ( m_Key );
+  auto  response = m_Cache -> lookup ( m_Key );  // safe because we copy shared pointers
 
   if (
     ! response
@@ -63,12 +62,12 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   // TODO: maybe use sendLocalReply() instead?
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
-    const auto  is_last = response -> m_Data . empty () && response -> m_Trailers == nullptr;
+    const auto  is_last = response -> m_Body . empty () && response -> m_Trailers == nullptr;
     this -> decoder_callbacks_ -> encodeHeaders  ( Http::createHeaderMap<Http::ResponseHeaderMapImpl> ( * response -> m_Headers ), is_last, "i've no idea what this \"details\" argument is for" );
   } );
   this -> post ( [ this, response = (*response) ] ( ) -> void
   {
-    auto  data = Buffer::OwnedImpl { response -> m_Data };
+    auto  data = Buffer::OwnedImpl { response -> m_Body };
     const auto  is_last = response -> m_Trailers == nullptr;
     this -> decoder_callbacks_ -> encodeData     ( data, is_last );
   } );
@@ -79,14 +78,12 @@ auto  Filter::decodeHeaders  ( Http::RequestHeaderMap & headers, bool  is_last )
   return  Http::FilterHeadersStatus::StopAllIterationAndWatermark;
 }
 
-auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last ) -> Http::FilterHeadersStatus
+auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers,
+                               bool  is_last ) -> Http::FilterHeadersStatus
 {
   ENVOY_LOG ( debug, "encoding: headers = [status={}, ...]; is last = {}", headers . getStatusValue (), is_last );
   switch ( m_State )
   {
-    case  State::Unknown:
-      assert ( 0 );
-      break;
     case  State::NotCacheable:
       return  Http::FilterHeadersStatus::Continue;
       break;
@@ -114,14 +111,12 @@ auto  Filter::encodeHeaders  ( Http::ResponseHeaderMap & headers, bool  is_last 
   }
 }
 
-auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http::FilterDataStatus
+auto  Filter::encodeData     ( Buffer::Instance & body,
+                               bool  is_last ) -> Http::FilterDataStatus
 {
-  ENVOY_LOG ( debug, "encoding: {} bytes of data; is last = {}", data . length (), is_last );
+  ENVOY_LOG ( debug, "encoding: {} bytes of body; is last = {}", body . length (), is_last );
   switch ( m_State )
   {
-    case  State::Unknown:
-      assert ( 0 );
-      break;
     case  State::NotCacheable:
       return  Http::FilterDataStatus::Continue;
       break;
@@ -129,7 +124,7 @@ auto  Filter::encodeData     ( Buffer::Instance & data, bool  is_last ) -> Http:
       return  Http::FilterDataStatus::Continue;
       break;
     case  State::Miss:
-      m_Data += data . toString ();
+      m_Body += body . toString ();
       if ( is_last )
         this -> commit ();
       return  Http::FilterDataStatus::Continue;
@@ -145,9 +140,6 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   ENVOY_LOG ( debug, "encoding: trailers" );
   switch ( m_State )
   {
-    case  State::Unknown:
-      assert ( 0 );
-      break;
     case  State::NotCacheable:
       return  Http::FilterTrailersStatus::Continue;
       break;
@@ -165,15 +157,15 @@ auto  Filter::encodeTrailers ( Http::ResponseTrailerMap & trailers ) -> Http::Fi
   }
 }
 
-auto  Filter::onDestroy ( ) -> void
+[[nodiscard]]
+auto  Filter::derive_key  ( const Http::RequestHeaderMap & headers ) -> std::string
 {
-  ENVOY_LOG ( debug, "on destroy" );
-  m_State = State::Destroyed;
+  return  absl::StrCat ( headers . getSchemeValue (), headers . getHostValue (), headers . getPathValue () );
 }
 
-auto  Filter::onStreamComplete ( ) -> void
+auto  Filter::commit  ( ) -> void
 {
-  ENVOY_LOG ( debug, "on stream complete" );
+  m_Cache -> insert_or_assign ( m_Key, [ ] ( ) { return  std::make_shared<const Response> ( std::move ( m_Headers ), std::move ( m_Trailers ), std::move ( m_Body ), std::move ( m_Stamp ) ); } );
 }
 
 
