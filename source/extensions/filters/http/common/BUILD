@@ -9,6 +9,13 @@ licenses(["notice"])  # Apache 2
 envoy_extension_package()
 
 envoy_cc_library(
+    name = "concurrent_hash_map_lib",
+    hdrs = [
+        "concurrent_hash_map.h",
+    ],
+)
+
+envoy_cc_library(
     name = "pass_through_filter_lib",
     hdrs = ["pass_through_filter.h"],
     # A thin shim used by test and prod filters.

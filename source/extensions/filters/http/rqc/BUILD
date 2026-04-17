@@ -28,6 +28,7 @@ envoy_cc_library(
     deps = [
         ":config_proto_cc_proto",
         "//source/common/http:header_map_lib",
+        "//source/extensions/filters/http/common:concurrent_hash_map_lib",
         "//source/extensions/filters/http/common:factory_base_lib",
         "//source/extensions/filters/http/common:pass_through_filter_lib",
     ],

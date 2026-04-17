@@ -20,15 +20,6 @@
 namespace  Envoy::Extensions::HttpFilters::Rqc
 {
 
-enum struct  State : std::uint32_t
-{
-  Initial,
-  // responsible for sending the request upstream and streaming the response for all subscribers
-  Publisher,  // 1st
-  // waiting for the response to be published
-  Subscriber, // 2nd, 3rd, 4th, ...
-};
-
 struct  MsgHeaders
 {
   std::unique_ptr<Http::ResponseHeaderMap>  m_Headers;
@@ -54,6 +45,15 @@ struct  Ticket
 };
 
 using  Cache = ConcurrentHashMap<std::string, Ticket>;
+
+enum struct  State : std::uint32_t
+{
+  Initial,
+  // responsible for sending the request upstream and streaming the response for all subscribers
+  Publisher,  // 1st
+  // waiting for the response to be published
+  Subscriber, // 2nd, 3rd, 4th, ...
+};
 
 struct  Filter : public Http::PassThroughFilter, public Logger::Loggable<Logger::Id::filter>, public std::enable_shared_from_this<Filter>
 {
