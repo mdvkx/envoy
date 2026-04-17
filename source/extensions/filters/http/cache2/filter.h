@@ -1,5 +1,7 @@
 #pragma once
 
+#include "./ring.h"
+
 #include "envoy/buffer/buffer.h"  // Buffer::Instance
 #include "envoy/common/time.h"  // SystemTime
 #include "envoy/http/header_map.h"  // RequestHeaderMap
